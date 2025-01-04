@@ -1,0 +1,10 @@
+[workspace]
+resolver = "2"
+members = ["crates/afterburner-core", "crates/afterburner-cpu"]
+
+[workspace.package]
+name = "afterburner"
+version = "0.1.0"
+edition = "2021"
+
+[workspace.dependencies]

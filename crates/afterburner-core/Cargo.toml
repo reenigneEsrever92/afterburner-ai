@@ -1,0 +1,6 @@
+[package]
+name = "afterburner-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
