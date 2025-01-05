@@ -11,7 +11,15 @@ pub struct Tensor<B: Backend, const D: usize, T: Clone> {
 }
 
 impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
-    pub fn empty(backend: B, shape: impl Into<Shape<D>>) -> Tensor<B, D, T> {
+    pub fn new(backend: B, shape: impl Into<Shape<D>>, data: Vec<T>) -> Self {
+        Self {
+            backend,
+            shape: shape.into(),
+            data,
+        }
+    }
+
+    pub fn empty(backend: B, shape: impl Into<Shape<D>>) -> Self {
         let shape: Shape<D> = shape.into();
         let size = shape.0.iter().product();
 

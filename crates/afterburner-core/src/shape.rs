@@ -16,6 +16,10 @@ impl<const D: usize> Shape<D> {
             Ok(())
         }
     }
+
+    pub fn size(&self) -> usize {
+        self.0.iter().product()
+    }
 }
 
 impl<const D: usize> From<[usize; D]> for Shape<D> {
