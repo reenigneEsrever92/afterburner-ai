@@ -5,3 +5,5 @@ edition.workspace = true
 
 [dependencies]
 afterburner-core = { path = "../afterburner-core" }
+tracing = { workspace = true }
+tracing-test = { workspace = true }

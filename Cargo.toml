@@ -8,3 +8,6 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
+tracing = "0.1"
+tracing-test = "0.2"
+thiserror = "2"
