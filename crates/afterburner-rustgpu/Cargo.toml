@@ -1,0 +1,6 @@
+[package]
+name = "afterburner-rustgpu"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]

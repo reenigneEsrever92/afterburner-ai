@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/afterburner-core", "crates/afterburner-cpu"]
+members = ["crates/afterburner-core", "crates/afterburner-cpu", "crates/afterburner-rustgpu"]
 
 [workspace.package]
 name = "afterburner"
