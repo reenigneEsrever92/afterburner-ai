@@ -32,28 +32,30 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
                 debug!(?batch, "Convoluting batch");
                 for channel in 0..tensor.shape().as_slice()[1] {
                     debug!(?channel, "Convoluting channel");
-                    for tensor_y in 0..tensor.shape().as_slice()[2] - weights.shape().as_slice()[2]
+                    for tensor_y in
+                        0..tensor.shape().as_slice()[2] - weights.shape().as_slice()[2] / 2
                     {
                         for tensor_x in
-                            0..tensor.shape().as_slice()[3] - weights.shape().as_slice()[3]
+                            0..tensor.shape().as_slice()[3] - weights.shape().as_slice()[3] / 2
                         {
                             for weight_y in 0..weights.shape().as_slice()[2] {
                                 for weight_x in 0..weights.shape().as_slice()[3] {
-                                    let output_index = batch * new_shape.as_slice()[0]
-                                        + out_channel * new_shape.as_slice()[1]
-                                        + tensor_y * new_shape.as_slice()[2]
+                                    let output_index = batch * new_shape.size_for_dimension(1)
+                                        + out_channel * new_shape.size_for_dimension(2)
+                                        + tensor_y * new_shape.size_for_dimension(3)
                                         + tensor_x;
 
-                                    let tensor_index = batch * tensor.shape().as_slice()[0]
-                                        + channel * tensor.shape().as_slice()[1]
-                                        + tensor_y * tensor.shape().as_slice()[2]
+                                    let tensor_index = batch * tensor.shape().size_for_dimension(1)
+                                        + channel * tensor.shape().size_for_dimension(2)
+                                        + tensor_y * tensor.shape().size_for_dimension(3)
                                         + tensor_x
-                                        + weight_y * tensor.shape().as_slice()[2]
+                                        + weight_y * tensor.shape().size_for_dimension(3)
                                         + weight_x;
 
-                                    let weight_index = out_channel * weights.shape().as_slice()[0]
-                                        + channel * weights.shape().as_slice()[1]
-                                        + weight_y * weights.shape().as_slice()[2]
+                                    let weight_index = out_channel
+                                        * weights.shape().size_for_dimension(1)
+                                        + channel * weights.shape().size_for_dimension(2)
+                                        + weight_y * weights.shape().size_for_dimension(3)
                                         + weight_x;
 
                                     let weight = weights.as_slice()[weight_index];

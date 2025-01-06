@@ -17,8 +17,18 @@ impl<const D: usize> Shape<D> {
         }
     }
 
+    #[inline]
     pub fn size(&self) -> usize {
         self.0.iter().product()
+    }
+
+    #[inline]
+    pub fn size_for_dimension(&self, dim: usize) -> usize {
+        let mut size = self.0[dim];
+        for i in dim + 1..D {
+            size *= self.0[i];
+        }
+        size
     }
 }
 
