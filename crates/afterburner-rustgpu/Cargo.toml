@@ -4,3 +4,11 @@ version.workspace = true
 edition.workspace = true
 
 [dependencies]
+afterburner-core = { path = "../afterburner-core" }
+wgpu = { workspace = true }
+smol = { workspace = true }
+bytemuck = { workspace = true }
+thiserror = { workspace = true }
+
+[build-dependencies]
+spirv-builder = { workspace = true }
