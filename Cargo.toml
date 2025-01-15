@@ -4,17 +4,8 @@ members = [
     "crates/afterburner-core",
     "crates/afterburner-cpu",
     "crates/afterburner-rustgpu",
-    "crates/afterburner-rustgpu-shaders",
 ]
-
-# Compile build-dependencies in release mode with
-# the same settings as regular dependencies.
-[profile.release.build-override]
-opt-level = 3
-codegen-units = 16
-
-[profile.dev.build-override]
-opt-level = 3
+exclude = ["crates/shaders", "crates/shaders/shaders", "crates/shaders/builder"]
 
 [workspace.package]
 name = "afterburner"
@@ -25,8 +16,6 @@ edition = "2021"
 tracing = "0.1"
 tracing-test = "0.2"
 thiserror = "2"
-spirv-builder = "0.9"
-spirv-std = "0.9"
-wgpu = "23"
+wgpu = "0.19"
 smol = "2"
 bytemuck = "1"
