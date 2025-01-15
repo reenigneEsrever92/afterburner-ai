@@ -1,6 +1,6 @@
 use crate::error::{AbResult, Error::ShapeMissmatch};
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Shape<const D: usize>(pub(crate) [usize; D]);
 
 impl<const D: usize> Shape<D> {
