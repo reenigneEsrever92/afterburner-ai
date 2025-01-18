@@ -7,3 +7,4 @@ edition.workspace = true
 tracing = { workspace = true }
 tracing-test = { workspace = true }
 thiserror = { workspace = true }
+lazy_static = { workspace = true }

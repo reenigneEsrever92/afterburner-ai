@@ -1,9 +1,13 @@
-use std::{collections::HashMap, marker::PhantomData};
+use std::{cell::RefCell, collections::HashMap, marker::PhantomData, ops::Deref, sync::Mutex};
 
-use afterburner_core::prelude::*;
+use lazy_static::lazy_static;
 use tracing::debug;
 
-const data: HashMap<usize, Vec<u8>> = HashMap::new();
+use crate::{backend::Backend, tensor::Tensor};
+
+lazy_static! {
+    static ref DATA: Mutex<HashMap<usize, Vec<u8>>> = Mutex::new(HashMap::new());
+}
 
 #[derive(Clone, Debug)]
 pub struct Cpu;
@@ -95,36 +99,21 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
             }
         }
 
-        Tensor::new(Cpu, new_shape, result)
-    }
-}
+        let tensor = Tensor::new(Cpu, new_shape);
 
-// TODO: create macro
-impl<const D: usize> From<[f32; D]> for Tensor<Cpu, 3, f32> {
-    fn from(value: [f32; D]) -> Self {
-        let t = Tensor::new(Cpu, Shape([1, 1, D]));
-    }
-}
-
-impl<const D: usize, const D2: usize> From<[[f32; D]; D2]> for Tensor<NoBackend, 4, f32> {
-    fn from(value: [[f32; D]; D2]) -> Self {
-        Tensor {
-            backend: NoBackend,
-            shape: Shape([1, 1, D2, D]),
-            data: PhantomData,
+        {
+            let mut data = DATA.lock().unwrap();
+            data.insert(tensor.id, cast_slice(result));
         }
+
+        tensor
     }
 }
 
-impl<const D: usize, const D2: usize, const D3: usize, const D4: usize>
-    From<[[[[f32; D]; D2]; D3]; D4]> for Tensor<Cpu, 4, f32>
-{
-    fn from(value: [[[[f32; D]; D2]; D3]; D4]) -> Self {
-        Tensor {
-            backend: NoBackend,
-            shape: Shape([D4, D3, D2, D]),
-            data: Vec::from(value).concat().concat().concat(),
-        }
+fn cast_slice<T: Clone + Sized>(data: Vec<T>) -> Vec<u8> {
+    unsafe {
+        let length = std::mem::size_of<T>() * data.len();
+        Vec::from_raw_parts(data.as_ptr() as *mut u8, length, length)
     }
 }
 
@@ -134,46 +123,6 @@ mod test {
     use tracing_test::traced_test;
 
     use crate::Cpu;
-
-    #[test]
-    fn test_from_4d() {
-        let tensor: Tensor<_, 4, _> = [
-            [
-                [
-                    [100.0, 101.0, 102.0],
-                    [103.0, 104.0, 105.0],
-                    [106.0, 107.0, 108.0],
-                ],
-                [
-                    [110.0, 111.0, 112.0],
-                    [113.0, 114.0, 115.0],
-                    [116.0, 117.0, 118.0],
-                ],
-            ],
-            [
-                [
-                    [200.0, 201.0, 202.0],
-                    [203.0, 204.0, 105.0],
-                    [206.0, 207.0, 208.0],
-                ],
-                [
-                    [210.0, 211.0, 212.0],
-                    [213.0, 214.0, 215.0],
-                    [216.0, 217.0, 218.0],
-                ],
-            ],
-        ]
-        .into();
-
-        assert_eq!(
-            tensor.as_slice(),
-            &[
-                100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 110.0, 111.0, 112.0,
-                113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 200.0, 201.0, 202.0, 203.0, 204.0, 105.0,
-                206.0, 207.0, 208.0, 210.0, 211.0, 212.0, 213.0, 214.0, 215.0, 216.0, 217.0, 218.0,
-            ]
-        );
-    }
 
     #[test]
     #[traced_test]
