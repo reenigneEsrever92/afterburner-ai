@@ -1,9 +1,9 @@
-use std::{cell::RefCell, collections::HashMap, marker::PhantomData, ops::Deref, sync::Mutex};
+use std::{collections::HashMap, sync::Mutex};
 
 use lazy_static::lazy_static;
 use tracing::debug;
 
-use crate::{backend::Backend, tensor::Tensor};
+use crate::{backend::Backend, conv2d::Conv2DImpl, shape::Shape, tensor::Tensor};
 
 lazy_static! {
     static ref DATA: Mutex<HashMap<usize, Vec<u8>>> = Mutex::new(HashMap::new());
@@ -13,15 +13,20 @@ lazy_static! {
 pub struct Cpu;
 
 impl Backend for Cpu {
-    fn as_slice<const D: usize, T: Clone>(&self, t: &Tensor<Self, D, T>) -> &[T] {
-        todo!()
+    fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
+        let lock = DATA.lock().unwrap();
+        let data = lock.get(&t.id).unwrap().as_slice();
+        let ptr = data.as_ptr() as *mut T;
+        let length = data.len() / std::mem::size_of::<T>();
+
+        unsafe { std::slice::from_raw_parts(ptr, length) }
     }
 
-    fn new_form<B: Backend, const D: usize, T: Clone>(
-        &self,
-        t: Tensor<B, D, T>,
-    ) -> Tensor<Self, D, T> {
-        todo!()
+    fn new_from<B: Backend, const D: usize, T: Clone>(t: Tensor<B, D, T>, data: &[u8]) {
+        let mut lock = DATA.lock().unwrap();
+        let length = std::mem::size_of::<T>() * data.len();
+        let data = unsafe { Vec::from_raw_parts(data.as_ptr() as *mut u8, length, length) };
+        lock.insert(t.id, data);
     }
 }
 
@@ -103,26 +108,32 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
 
         {
             let mut data = DATA.lock().unwrap();
-            data.insert(tensor.id, cast_slice(result));
+            data.insert(tensor.id, as_bytes(result));
         }
 
         tensor
     }
 }
 
-fn cast_slice<T: Clone + Sized>(data: Vec<T>) -> Vec<u8> {
+fn as_bytes<T: Clone + Sized>(data: Vec<T>) -> Vec<u8> {
     unsafe {
-        let length = std::mem::size_of<T>() * data.len();
+        let length = std::mem::size_of::<T>() * data.len();
         Vec::from_raw_parts(data.as_ptr() as *mut u8, length, length)
+    }
+}
+
+fn as_slice<T: Clone + Sized>(data: &[u8]) -> &[T] {
+    unsafe {
+        let ptr = data.as_ptr() as *mut T;
+        let length = data.len() / std::mem::size_of::<T>();
+        std::slice::from_raw_parts(ptr, 5)
     }
 }
 
 #[cfg(test)]
 mod test {
-    use afterburner_core::prelude::*;
+    use crate::prelude::*;
     use tracing_test::traced_test;
-
-    use crate::Cpu;
 
     #[test]
     #[traced_test]

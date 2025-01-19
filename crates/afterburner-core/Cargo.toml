@@ -8,3 +8,4 @@ tracing = { workspace = true }
 tracing-test = { workspace = true }
 thiserror = { workspace = true }
 lazy_static = { workspace = true }
+bytemuck = { workspace = true }

@@ -26,7 +26,7 @@ impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
     }
 
     pub fn copy_to<B2: Backend>(&self, backend: B2) -> Tensor<B2, D, T> {
-        backend.new_form(self.clone())
+        backend.new_from(self.clone())
     }
 
     pub fn as_slice(&self) -> &[T] {
@@ -55,11 +55,11 @@ impl<const D: usize, const D2: usize> From<[[f32; D]; D2]> for Tensor<Cpu, 4, f3
     }
 }
 
-impl<const D: usize, const D2: usize, const D3: usize, const D4: usize>
-    From<[[[[f32; D]; D2]; D3]; D4]> for Tensor<Cpu, 4, f32>
+impl<B: Backend, const D: usize, const D2: usize, const D3: usize, const D4: usize>
+    From<[[[[f32; D]; D2]; D3]; D4]> for Tensor<B, 4, f32>
 {
     fn from(value: [[[[f32; D]; D2]; D3]; D4]) -> Self {
-        Tensor::new(Cpu, Shape([D4, D3, D2, D]))
+        Tensor::new(B, Shape([D4, D3, D2, D]))
     }
 }
 
