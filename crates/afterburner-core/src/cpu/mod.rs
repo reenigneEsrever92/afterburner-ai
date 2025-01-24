@@ -12,8 +12,18 @@ lazy_static! {
 #[derive(Clone, Debug)]
 pub struct Cpu;
 
+impl Cpu {
+    pub(crate) fn tensor_from_raw<const D: usize, T: Clone>(
+        data: &'static [T],
+        shape: Shape<D>,
+    ) -> Tensor<Self, D, T> {
+        let data = unsafe { Vec::from_raw_parts(data.as_ptr() as *mut T, data.len(), data.len()) };
+        Cpu.new_tensor(shape, data)
+    }
+}
+
 impl Backend for Cpu {
-    fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
+    fn as_slice<const D: usize, T: Clone>(&self, t: &Tensor<Self, D, T>) -> &[T] {
         let lock = DATA.lock().unwrap();
         let data = lock.get(&t.id).unwrap().as_slice();
         let ptr = data.as_ptr() as *mut T;
@@ -22,11 +32,23 @@ impl Backend for Cpu {
         unsafe { std::slice::from_raw_parts(ptr, length) }
     }
 
-    fn new_from<B: Backend, const D: usize, T: Clone>(t: Tensor<B, D, T>, data: &[u8]) {
+    fn new_tensor<const D: usize, T: Clone>(
+        &self,
+        shape: Shape<D>,
+        vec: Vec<T>,
+    ) -> Tensor<Self, D, T> {
+        let t = Tensor::new(self.clone(), shape);
+
+        let length = std::mem::size_of::<T>() * vec.len();
+        let data = unsafe { Vec::from_raw_parts(vec.as_ptr() as *mut u8, length, length) };
+
+        // forget all vec since our new vec has ownership of memory now thorugh the pointer magic above
+        std::mem::forget(vec);
+
         let mut lock = DATA.lock().unwrap();
-        let length = std::mem::size_of::<T>() * data.len();
-        let data = unsafe { Vec::from_raw_parts(data.as_ptr() as *mut u8, length, length) };
         lock.insert(t.id, data);
+
+        t
     }
 }
 
