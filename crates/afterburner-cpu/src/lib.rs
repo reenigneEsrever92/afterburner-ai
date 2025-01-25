@@ -3,7 +3,7 @@ use std::{collections::HashMap, sync::Mutex};
 use lazy_static::lazy_static;
 use tracing::debug;
 
-use crate::{backend::Backend, conv2d::Conv2DImpl, shape::Shape, tensor::Tensor};
+use afterburner_core::prelude::*;
 
 lazy_static! {
     static ref DATA: Mutex<HashMap<usize, Vec<u8>>> = Mutex::new(HashMap::new());
@@ -18,12 +18,20 @@ impl Cpu {
         shape: Shape<D>,
     ) -> Tensor<Self, D, T> {
         let data = unsafe { Vec::from_raw_parts(data.as_ptr() as *mut T, data.len(), data.len()) };
-        Cpu.new_tensor(shape, data)
+        Cpu::new_tensor(shape, data)
+    }
+
+    fn tensor<const D: usize, const L: usize, T: Clone>(
+        &self,
+        shape: Shape<D>,
+        data: [T; L],
+    ) -> Tensor<Self, D, T> {
+        todo!()
     }
 }
 
 impl Backend for Cpu {
-    fn as_slice<const D: usize, T: Clone>(&self, t: &Tensor<Self, D, T>) -> &[T] {
+    fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
         let lock = DATA.lock().unwrap();
         let data = lock.get(&t.id).unwrap().as_slice();
         let ptr = data.as_ptr() as *mut T;
@@ -32,17 +40,13 @@ impl Backend for Cpu {
         unsafe { std::slice::from_raw_parts(ptr, length) }
     }
 
-    fn new_tensor<const D: usize, T: Clone>(
-        &self,
-        shape: Shape<D>,
-        vec: Vec<T>,
-    ) -> Tensor<Self, D, T> {
-        let t = Tensor::new(self.clone(), shape);
+    fn new_tensor<const D: usize, T: Clone>(shape: Shape<D>, vec: Vec<T>) -> Tensor<Self, D, T> {
+        let t = Tensor::new(Self, shape);
 
         let length = std::mem::size_of::<T>() * vec.len();
         let data = unsafe { Vec::from_raw_parts(vec.as_ptr() as *mut u8, length, length) };
 
-        // forget all vec since our new vec has ownership of memory now thorugh the pointer magic above
+        // forget vec since our new vec has ownership of memory now thorugh the pointer magic above
         std::mem::forget(vec);
 
         let mut lock = DATA.lock().unwrap();
@@ -154,13 +158,14 @@ fn as_slice<T: Clone + Sized>(data: &[u8]) -> &[T] {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use afterburner_core::prelude::*;
     use tracing_test::traced_test;
 
+    use crate::Cpu;
+
     #[test]
-    #[traced_test]
-    fn test_conv() {
-        let tensor = Tensor::from([
+    fn test_from_4d() {
+        let tensor: Tensor<Cpu, 4, _> = Tensor::from([
             [
                 [
                     [100.0, 101.0, 102.0],
@@ -185,14 +190,52 @@ mod test {
                     [216.0, 217.0, 218.0],
                 ],
             ],
-        ])
-        .copy_to(Cpu);
+        ]);
 
-        let weights = Tensor::from([
+        assert_eq!(
+            tensor.as_slice(),
+            &[
+                100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 110.0, 111.0, 112.0,
+                113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 200.0, 201.0, 202.0, 203.0, 204.0, 105.0,
+                206.0, 207.0, 208.0, 210.0, 211.0, 212.0, 213.0, 214.0, 215.0, 216.0, 217.0, 218.0,
+            ]
+        );
+    }
+
+    #[test]
+    #[traced_test]
+    fn test_conv() {
+        let tensor: Tensor<Cpu, 4, f32> = Tensor::from([
+            [
+                [
+                    [100.0, 101.0, 102.0],
+                    [103.0, 104.0, 105.0],
+                    [106.0, 107.0, 108.0],
+                ],
+                [
+                    [110.0, 111.0, 112.0],
+                    [113.0, 114.0, 115.0],
+                    [116.0, 117.0, 118.0],
+                ],
+            ],
+            [
+                [
+                    [200.0, 201.0, 202.0],
+                    [203.0, 204.0, 105.0],
+                    [206.0, 207.0, 208.0],
+                ],
+                [
+                    [210.0, 211.0, 212.0],
+                    [213.0, 214.0, 215.0],
+                    [216.0, 217.0, 218.0],
+                ],
+            ],
+        ]);
+
+        let weights: Tensor<Cpu, 4, f32> = Tensor::from([
             [[[1.0, 1.0], [1.0, 1.0]], [[2.0, 2.0], [2.0, 2.0]]],
             [[[3.0, 3.0], [3.0, 3.0]], [[4.0, 4.0], [4.0, 4.0]]],
-        ])
-        .copy_to(Cpu);
+        ]);
 
         let result = tensor.conv_2d(&weights, 1).unwrap();
 

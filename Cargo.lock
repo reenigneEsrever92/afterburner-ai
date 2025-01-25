@@ -7,8 +7,16 @@ name = "afterburner-core"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "lazy_static",
  "thiserror 2.0.11",
+ "tracing",
+]
+
+[[package]]
+name = "afterburner-cpu"
+version = "0.1.0"
+dependencies = [
+ "afterburner-core",
+ "lazy_static",
  "tracing",
  "tracing-test",
 ]

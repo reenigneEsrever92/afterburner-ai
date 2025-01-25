@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/afterburner-core", "crates/afterburner-rustgpu"]
+members = ["crates/afterburner-core", "crates/afterburner-cpu", "crates/afterburner-rustgpu"]
 exclude = ["crates/shaders", "crates/shaders/shaders", "crates/shaders/builder"]
 
 [workspace.package]

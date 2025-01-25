@@ -1,0 +1,12 @@
+[package]
+name = "afterburner-cpu"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+tracing = { workspace = true }
+lazy_static = { workspace = true }
+afterburner-core = { path = "../afterburner-core" }
+
+[dev-dependencies]
+tracing-test = { workspace = true }
