@@ -1,7 +1,4 @@
-use std::{
-    os::unix::process::CommandExt,
-    process::{Command, Stdio},
-};
+use std::process::Command;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let current_dir = std::env::current_dir()?;
@@ -12,9 +9,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Current dir: {:?}, build dir: {:?}", current_dir, build_dir);
     println!("Env: {:?}", std::env::vars());
 
-    let mut cargo = std::process::Command::new("cargo");
+    let mut cargo = Command::new("cargo");
 
-    for (key, value) in std::env::vars() {
+    for (key, _) in std::env::vars() {
         if key.contains("CARGO") || key.contains("RUST") {
             cargo.env_remove(key);
         }

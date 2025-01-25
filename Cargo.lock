@@ -27,6 +27,7 @@ version = "0.1.0"
 dependencies = [
  "afterburner-core",
  "bytemuck",
+ "lazy_static",
  "smol",
  "thiserror 2.0.11",
  "wgpu",

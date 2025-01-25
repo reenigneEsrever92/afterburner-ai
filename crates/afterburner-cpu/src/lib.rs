@@ -1,9 +1,11 @@
 use std::{collections::HashMap, sync::Mutex};
 
 use lazy_static::lazy_static;
-use tracing::debug;
 
 use afterburner_core::prelude::*;
+
+pub mod nn;
+pub mod prelude;
 
 lazy_static! {
     static ref DATA: Mutex<HashMap<usize, Vec<u8>>> = Mutex::new(HashMap::new());
@@ -35,87 +37,6 @@ impl Backend for Cpu {
         lock.insert(t.id, data);
 
         t
-    }
-}
-
-impl Conv2DImpl<Cpu, f32> for Cpu {
-    fn conv_2d(
-        &self,
-        tensor: &Tensor<Cpu, 4, f32>,
-        weights: &Tensor<Cpu, 4, f32>,
-        stride: Shape<2>,
-    ) -> Tensor<Cpu, 4, f32> {
-        debug!(?tensor, ?weights, ?stride, "Convoluting tensor");
-
-        let new_shape: Shape<4> = [
-            tensor.shape().as_slice()[0],
-            weights.shape().as_slice()[1],
-            tensor.shape().as_slice()[2] / stride.as_slice()[0] - weights.shape().as_slice()[2] / 2,
-            tensor.shape().as_slice()[3] / stride.as_slice()[1] - weights.shape().as_slice()[3] / 2,
-        ]
-        .into();
-
-        // new tensor
-        let mut result: Vec<f32> = vec![0f32; new_shape.size()];
-
-        for out_channel in 0..weights.shape().as_slice()[0] {
-            debug!(?out_channel, "Convoluting out channel");
-            for batch in 0..tensor.shape().as_slice()[0] {
-                debug!(?batch, "Convoluting batch");
-                for channel in 0..tensor.shape().as_slice()[1] {
-                    debug!(?channel, "Convoluting channel");
-                    for tensor_y in
-                        0..tensor.shape().as_slice()[2] - weights.shape().as_slice()[2] / 2
-                    {
-                        for tensor_x in
-                            0..tensor.shape().as_slice()[3] - weights.shape().as_slice()[3] / 2
-                        {
-                            for weight_y in 0..weights.shape().as_slice()[2] {
-                                for weight_x in 0..weights.shape().as_slice()[3] {
-                                    let output_index = batch * new_shape.size_for_dimension(1)
-                                        + out_channel * new_shape.size_for_dimension(2)
-                                        + tensor_y * new_shape.size_for_dimension(3)
-                                        + tensor_x;
-
-                                    let input_index = batch * tensor.shape().size_for_dimension(1)
-                                        + channel * tensor.shape().size_for_dimension(2)
-                                        + tensor_y * tensor.shape().size_for_dimension(3)
-                                        + tensor_x
-                                        + weight_y * tensor.shape().size_for_dimension(3)
-                                        + weight_x;
-
-                                    let weight_index = out_channel
-                                        * weights.shape().size_for_dimension(1)
-                                        + channel * weights.shape().size_for_dimension(2)
-                                        + weight_y * weights.shape().size_for_dimension(3)
-                                        + weight_x;
-
-                                    let weight = weights.as_slice()[weight_index];
-
-                                    let input = tensor.as_slice()[input_index];
-
-                                    let value = result[output_index] + input * weight;
-
-                                    result[output_index] = value;
-
-                                    debug!(
-                                        ?input_index,
-                                        ?input,
-                                        ?weight_index,
-                                        ?weight,
-                                        ?output_index,
-                                        ?value,
-                                        "Updating result tensor"
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Cpu::new_tensor(new_shape, result)
     }
 }
 

@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, sync::Arc};
+use std::sync::Mutex;
 
 use afterburner_core::prelude::*;
 
@@ -15,14 +15,20 @@ struct RustGpuBackend {
     shader: wgpu::ShaderModule,
 }
 
+static BACKEND: Mutex<Option<RustGpuBackend>> = Mutex::new(None);
+
 #[derive(Debug, Clone)]
-struct RustGpu {
-    backend: Arc<RefCell<RustGpuBackend>>,
-}
+struct RustGpu {}
 
 impl Backend for RustGpu {
     fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
-        todo!()
+        let lock = BACKEND.lock().unwrap();
+
+        if let Some(backend) = lock.as_ref() {
+            todo!()
+        } else {
+            panic!("RustGpu backend has not been initialized call init() first!");
+        }
     }
 
     fn new_tensor<const D: usize, T: Clone>(shape: Shape<D>, data: Vec<T>) -> Tensor<Self, D, T> {
@@ -30,47 +36,44 @@ impl Backend for RustGpu {
     }
 }
 
-impl RustGpu {
-    fn new() -> Self {
-        let backend = smol::block_on(async move {
-            let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-                backends: wgpu::Backends::PRIMARY,
-                ..Default::default()
-            });
-
-            let adapter = instance
-                .request_adapter(&wgpu::RequestAdapterOptions {
-                    power_preference: wgpu::PowerPreference::HighPerformance,
-                    ..Default::default()
-                })
-                .await
-                .unwrap();
-
-            let (device, queue) = adapter
-                .request_device(
-                    &wgpu::DeviceDescriptor {
-                        ..Default::default()
-                    },
-                    None,
-                )
-                .await
-                .unwrap();
-
-            let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                label: Some("Shader"),
-                source: wgpu::ShaderSource::SpirV(wgpu::util::make_spirv_raw(SHADER)),
-            });
-
-            RustGpuBackend {
-                adapter,
-                device,
-                queue,
-                shader,
-            }
+pub fn init() {
+    let backend = smol::block_on(async move {
+        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::PRIMARY,
+            ..Default::default()
         });
 
-        RustGpu {
-            backend: Arc::new(RefCell::new(backend)),
+        let adapter = instance
+            .request_adapter(&wgpu::RequestAdapterOptions {
+                power_preference: wgpu::PowerPreference::HighPerformance,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        let (device, queue) = adapter
+            .request_device(
+                &wgpu::DeviceDescriptor {
+                    ..Default::default()
+                },
+                None,
+            )
+            .await
+            .unwrap();
+
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: wgpu::ShaderSource::SpirV(wgpu::util::make_spirv_raw(SHADER)),
+        });
+
+        RustGpuBackend {
+            adapter,
+            device,
+            queue,
+            shader,
         }
-    }
+    });
+
+    let mut lock = BACKEND.lock().unwrap();
+    *lock = Some(backend);
 }
