@@ -20,7 +20,15 @@ struct RustGpu {
     backend: Arc<RefCell<RustGpuBackend>>,
 }
 
-impl Backend for RustGpu {}
+impl Backend for RustGpu {
+    fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
+        todo!()
+    }
+
+    fn new_tensor<const D: usize, T: Clone>(shape: Shape<D>, data: Vec<T>) -> Tensor<Self, D, T> {
+        todo!()
+    }
+}
 
 impl RustGpu {
     fn new() -> Self {

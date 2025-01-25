@@ -1,11 +1,11 @@
 use std::{
     marker::PhantomData,
-    sync::atomic::{AtomicUsize, Ordering::Acquire},
+    sync::atomic::{AtomicUsize, Ordering::SeqCst},
 };
 
 use crate::{backend::Backend, shape::Shape};
 
-const counter: AtomicUsize = AtomicUsize::new(0);
+static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[derive(Debug, Clone, Copy)]
 pub struct Tensor<B: Backend, const D: usize, T: Clone> {
@@ -18,7 +18,7 @@ pub struct Tensor<B: Backend, const D: usize, T: Clone> {
 impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
     pub fn new(backend: B, shape: impl Into<Shape<D>>) -> Self {
         Self {
-            id: get_id(),
+            id: COUNTER.fetch_add(1, SeqCst),
             backend,
             shape: shape.into(),
             data: PhantomData,
@@ -36,10 +36,6 @@ impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
     pub fn shape(&self) -> &Shape<D> {
         &self.shape
     }
-}
-
-fn get_id() -> usize {
-    return counter.swap(*counter.get_mut() + 1, Acquire);
 }
 
 // TODO: create macro

@@ -20,14 +20,6 @@ impl Cpu {
         let data = unsafe { Vec::from_raw_parts(data.as_ptr() as *mut T, data.len(), data.len()) };
         Cpu::new_tensor(shape, data)
     }
-
-    fn tensor<const D: usize, const L: usize, T: Clone>(
-        &self,
-        shape: Shape<D>,
-        data: [T; L],
-    ) -> Tensor<Self, D, T> {
-        todo!()
-    }
 }
 
 impl Backend for Cpu {
@@ -95,7 +87,7 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
                                         + tensor_y * new_shape.size_for_dimension(3)
                                         + tensor_x;
 
-                                    let tensor_index = batch * tensor.shape().size_for_dimension(1)
+                                    let input_index = batch * tensor.shape().size_for_dimension(1)
                                         + channel * tensor.shape().size_for_dimension(2)
                                         + tensor_y * tensor.shape().size_for_dimension(3)
                                         + tensor_x
@@ -110,15 +102,18 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
 
                                     let weight = weights.as_slice()[weight_index];
 
-                                    let value = result[output_index]
-                                        + tensor.as_slice()[tensor_index] * weight;
+                                    let input = tensor.as_slice()[input_index];
+
+                                    let value = result[output_index] + input * weight;
 
                                     result[output_index] = value;
 
                                     debug!(
-                                        ?output_index,
-                                        ?weight,
+                                        ?input_index,
+                                        ?input,
                                         ?weight_index,
+                                        ?weight,
+                                        ?output_index,
                                         ?value,
                                         "Updating result tensor"
                                     )
@@ -130,29 +125,7 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
             }
         }
 
-        let tensor = Tensor::new(Cpu, new_shape);
-
-        {
-            let mut data = DATA.lock().unwrap();
-            data.insert(tensor.id, as_bytes(result));
-        }
-
-        tensor
-    }
-}
-
-fn as_bytes<T: Clone + Sized>(data: Vec<T>) -> Vec<u8> {
-    unsafe {
-        let length = std::mem::size_of::<T>() * data.len();
-        Vec::from_raw_parts(data.as_ptr() as *mut u8, length, length)
-    }
-}
-
-fn as_slice<T: Clone + Sized>(data: &[u8]) -> &[T] {
-    unsafe {
-        let ptr = data.as_ptr() as *mut T;
-        let length = data.len() / std::mem::size_of::<T>();
-        std::slice::from_raw_parts(ptr, 5)
+        Cpu::new_tensor(new_shape, result)
     }
 }
 
@@ -164,6 +137,7 @@ mod test {
     use crate::Cpu;
 
     #[test]
+    #[traced_test]
     fn test_from_4d() {
         let tensor: Tensor<Cpu, 4, _> = Tensor::from([
             [
