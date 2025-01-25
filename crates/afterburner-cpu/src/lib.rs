@@ -12,16 +12,6 @@ lazy_static! {
 #[derive(Clone, Debug)]
 pub struct Cpu;
 
-impl Cpu {
-    pub(crate) fn tensor_from_raw<const D: usize, T: Clone>(
-        data: &'static [T],
-        shape: Shape<D>,
-    ) -> Tensor<Self, D, T> {
-        let data = unsafe { Vec::from_raw_parts(data.as_ptr() as *mut T, data.len(), data.len()) };
-        Cpu::new_tensor(shape, data)
-    }
-}
-
 impl Backend for Cpu {
     fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
         let lock = DATA.lock().unwrap();
