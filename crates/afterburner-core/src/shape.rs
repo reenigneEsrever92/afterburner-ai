@@ -3,6 +3,12 @@ use crate::error::{AbResult, Error::ShapeMissmatch};
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub struct Shape<const D: usize>(pub [usize; D]);
 
+impl<const D: usize> Default for Shape<D> {
+    fn default() -> Self {
+        Self([0; D])
+    }
+}
+
 impl<const D: usize> Shape<D> {
     #[inline]
     pub fn as_slice(&self) -> &[usize; D] {
