@@ -7,9 +7,11 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
         &self,
         tensor: &Tensor<Cpu, 4, f32>,
         weights: &Tensor<Cpu, 4, f32>,
-        stride: Shape<2>,
+        params: Conv2DParams,
     ) -> Tensor<Cpu, 4, f32> {
-        debug!(?tensor, ?weights, ?stride, "Convoluting tensor");
+        debug!(?tensor, ?weights, ?params, "Convoluting tensor");
+
+        let stride = &params.stride;
 
         let new_shape: Shape<4> = [
             tensor.shape().as_slice()[0],
@@ -125,7 +127,7 @@ mod test {
             [[[3.0, 3.0], [3.0, 3.0]], [[4.0, 4.0], [4.0, 4.0]]],
         ]);
 
-        let result = tensor.conv_2d(&weights, 1).unwrap();
+        let result = tensor.conv_2d(&weights, Conv2DParams::default()).unwrap();
 
         let shape = result.shape().to_owned();
 

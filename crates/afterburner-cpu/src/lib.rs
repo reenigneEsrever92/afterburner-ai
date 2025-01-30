@@ -122,7 +122,7 @@ mod test {
             [[[3.0, 3.0], [3.0, 3.0]], [[4.0, 4.0], [4.0, 4.0]]],
         ]);
 
-        let result = tensor.conv_2d(&weights, 1).unwrap();
+        let result = tensor.conv_2d(&weights, Conv2DParams::default()).unwrap();
 
         let shape = result.shape().to_owned();
 

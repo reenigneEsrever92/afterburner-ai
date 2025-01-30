@@ -5,7 +5,7 @@ pub struct Shape<const D: usize>(pub [usize; D]);
 
 impl<const D: usize> Default for Shape<D> {
     fn default() -> Self {
-        Self([0; D])
+        Self([1; D])
     }
 }
 

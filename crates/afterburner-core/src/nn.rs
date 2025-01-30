@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct Conv2DParams {
-    stride: Shape<2>,
+    pub stride: Shape<2>,
 }
 
 pub trait Conv2DImpl<B: Backend, T: Clone> {
