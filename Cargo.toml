@@ -1,10 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["crates/afterburner-core", "crates/afterburner-cpu", "crates/afterburner-rustgpu"]
+members = ["crates/*", "examples/*"]
 exclude = ["crates/shaders", "crates/shaders/shaders", "crates/shaders/builder"]
 
 [workspace.package]
-name = "afterburner"
 version = "0.1.0"
 edition = "2021"
 

@@ -10,18 +10,18 @@ static COUNTER: AtomicUsize = AtomicUsize::new(0);
 #[derive(Debug, Clone, Copy)]
 pub struct Tensor<B: Backend, const D: usize, T: Clone> {
     pub id: usize,
-    pub backend: B,
     pub shape: Shape<D>,
+    backend: PhantomData<B>,
     data: PhantomData<T>,
 }
 
 impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
-    pub fn new(backend: B, shape: impl Into<Shape<D>>) -> Self {
+    pub fn create(shape: impl Into<Shape<D>>) -> Self {
         Self {
             id: COUNTER.fetch_add(1, SeqCst),
-            backend,
             shape: shape.into(),
             data: PhantomData,
+            backend: PhantomData,
         }
     }
 

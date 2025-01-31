@@ -7,7 +7,6 @@ pub struct Conv2DParams {
 
 pub trait Conv2DImpl<B: Backend, T: Clone> {
     fn conv_2d(
-        &self,
         tensor: &Tensor<B, 4, T>,
         weights: &Tensor<B, 4, T>,
         params: Conv2DParams,
@@ -30,6 +29,6 @@ impl<B: Backend + Conv2DImpl<B, T>, T: Clone> Conv2D<B, T> for Tensor<B, 4, T> {
     ) -> AbResult<Tensor<B, 4, T>> {
         // second dimension must be the same (input channels) on both tensor and weights
         self.shape().match_channels(weights.shape())?;
-        Ok(self.backend.conv_2d(self, weights, params.into()))
+        Ok(B::conv_2d(self, weights, params.into()))
     }
 }

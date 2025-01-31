@@ -25,7 +25,7 @@ impl Backend for Cpu {
     }
 
     fn new_tensor<const D: usize, T: Clone>(shape: Shape<D>, vec: Vec<T>) -> Tensor<Self, D, T> {
-        let t = Tensor::new(Self, shape);
+        let t = Tensor::create(shape);
 
         let length = std::mem::size_of::<T>() * vec.len();
         let data = unsafe { Vec::from_raw_parts(vec.as_ptr() as *mut u8, length, length) };

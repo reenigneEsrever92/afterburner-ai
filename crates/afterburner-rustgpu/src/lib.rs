@@ -2,10 +2,14 @@ use std::sync::Mutex;
 
 use afterburner_core::prelude::*;
 
+pub mod prelude;
+
 const SHADER: &[u8] = include_bytes!(env!("shaders.spv"));
 
 #[derive(Debug, thiserror::Error)]
 enum RGError {}
+
+static BACKEND: Mutex<Option<RustGpuBackend>> = Mutex::new(None);
 
 #[derive(Debug)]
 struct RustGpuBackend {
@@ -15,10 +19,22 @@ struct RustGpuBackend {
     shader: wgpu::ShaderModule,
 }
 
-static BACKEND: Mutex<Option<RustGpuBackend>> = Mutex::new(None);
+impl RustGpuBackend {
+    fn new_tensor<const D: usize, T: Clone>(
+        &mut self,
+        shape: Shape<D>,
+        data: Vec<T>,
+    ) -> Tensor<RustGpu, D, T> {
+        let tensor = Tensor::create(shape);
+
+        tensor
+    }
+}
+
+pub struct RustGpuBuilder;
 
 #[derive(Debug, Clone)]
-struct RustGpu {}
+pub struct RustGpu {}
 
 impl Backend for RustGpu {
     fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
@@ -32,7 +48,13 @@ impl Backend for RustGpu {
     }
 
     fn new_tensor<const D: usize, T: Clone>(shape: Shape<D>, data: Vec<T>) -> Tensor<Self, D, T> {
-        todo!()
+        let mut lock = BACKEND.lock().unwrap();
+
+        if let Some(backend) = lock.as_mut() {
+            backend.new_tensor(shape, data)
+        } else {
+            panic!("RustGpu backend has not been initialized call init() first!");
+        }
     }
 }
 
@@ -80,7 +102,6 @@ pub fn init() {
 
 impl Conv2DImpl<RustGpu, f32> for RustGpu {
     fn conv_2d(
-        &self,
         tensor: &Tensor<RustGpu, 4, f32>,
         weights: &Tensor<RustGpu, 4, f32>,
         params: Conv2DParams,
@@ -91,9 +112,13 @@ impl Conv2DImpl<RustGpu, f32> for RustGpu {
 
 #[cfg(test)]
 mod test {
-    use afterburner_core::prelude::*;
+    use crate::prelude::*;
 
-    use crate::RustGpu;
+    #[test]
+    fn test_create_tensor() {
+        init();
+        let tensor: Tensor<RustGpu, 4, f32> = Tensor::from([[[[1.0f32]]]]);
+    }
 
     // #[test]
     // fn test_conv() {
