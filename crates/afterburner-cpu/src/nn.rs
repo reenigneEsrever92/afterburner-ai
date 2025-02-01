@@ -55,9 +55,9 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
                                         + weight_y * weights.shape().size_for_dimension(3)
                                         + weight_x;
 
-                                    let weight = weights.as_slice()[weight_index];
+                                    let weight = weights.to_vec()[weight_index];
 
-                                    let input = tensor.as_slice()[input_index];
+                                    let input = tensor.to_vec()[input_index];
 
                                     let value = result[output_index] + input * weight;
 
@@ -133,7 +133,7 @@ mod test {
         assert_eq!(shape, [2, 2, 2, 2].into());
 
         assert_eq!(
-            result.as_slice(),
+            result.to_vec(),
             &[
                 1304.0, 1316.0, 1340.0, 1352.0, 3016.0, 3044.0, 3100.0, 3128.0, 2504.0, 2416.0,
                 2540.0, 2452.0, 5816.0, 5544.0, 5900.0, 5628.0

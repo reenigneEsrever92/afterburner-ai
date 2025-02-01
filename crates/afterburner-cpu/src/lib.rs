@@ -15,13 +15,13 @@ lazy_static! {
 pub struct Cpu;
 
 impl Backend for Cpu {
-    fn as_slice<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> &[T] {
+    fn read_tensor<const D: usize, T: Clone>(t: &Tensor<Self, D, T>) -> Vec<T> {
         let lock = DATA.lock().unwrap();
         let data = lock.get(&t.id).unwrap().as_slice();
         let ptr = data.as_ptr() as *mut T;
         let length = data.len() / std::mem::size_of::<T>();
 
-        unsafe { std::slice::from_raw_parts(ptr, length) }
+        unsafe { std::slice::from_raw_parts(ptr, length).to_vec() }
     }
 
     fn new_tensor<const D: usize, T: Clone>(shape: Shape<D>, vec: Vec<T>) -> Tensor<Self, D, T> {
@@ -78,7 +78,7 @@ mod test {
         ]);
 
         assert_eq!(
-            tensor.as_slice(),
+            tensor.to_vec(),
             &[
                 100.0, 101.0, 102.0, 103.0, 104.0, 105.0, 106.0, 107.0, 108.0, 110.0, 111.0, 112.0,
                 113.0, 114.0, 115.0, 116.0, 117.0, 118.0, 200.0, 201.0, 202.0, 203.0, 204.0, 105.0,
@@ -129,7 +129,7 @@ mod test {
         assert_eq!(shape, [2, 2, 2, 2].into());
 
         assert_eq!(
-            result.as_slice(),
+            result.to_vec(),
             &[
                 1304.0, 1316.0, 1340.0, 1352.0, 3016.0, 3044.0, 3100.0, 3128.0, 2504.0, 2416.0,
                 2540.0, 2452.0, 5816.0, 5544.0, 5900.0, 5628.0

@@ -26,15 +26,23 @@ impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
     }
 
     pub fn copy_to<B2: Backend>(&self) -> Tensor<B2, D, T> {
-        B2::new_tensor(self.shape, self.as_slice().to_vec())
+        B2::new_tensor(self.shape, self.to_vec().to_vec())
     }
 
-    pub fn as_slice(&self) -> &[T] {
-        B::as_slice(self)
+    pub fn to_vec(&self) -> Vec<T> {
+        B::read_tensor(self)
     }
 
     pub fn shape(&self) -> &Shape<D> {
         &self.shape
+    }
+
+    /**
+     * Size in bytes.
+     */
+    #[inline]
+    pub fn size(&self) -> usize {
+        std::mem::size_of::<T>() * self.shape.size()
     }
 }
 
