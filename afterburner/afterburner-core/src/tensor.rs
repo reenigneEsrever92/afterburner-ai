@@ -59,6 +59,30 @@ impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
 //     }
 // }
 
+impl<B: Backend> From<Vec<u8>> for Tensor<B, 1, u8> {
+    fn from(value: Vec<u8>) -> Self {
+        B::new_tensor(Shape([value.len()]), value)
+    }
+}
+
+impl<B: Backend, const D: usize> From<[u8; D]> for Tensor<B, 1, u8> {
+    fn from(value: [u8; D]) -> Self {
+        let ptr = value.as_ptr() as *mut u8;
+        let length = D;
+        let data = unsafe { Vec::from(std::slice::from_raw_parts(ptr, length)) };
+        B::new_tensor(Shape([D]), data)
+    }
+}
+
+impl<B: Backend, const D: usize, const D2: usize> From<[[u8; D]; D2]> for Tensor<B, 2, u8> {
+    fn from(value: [[u8; D]; D2]) -> Self {
+        let ptr = value.as_ptr() as *mut u8;
+        let length = D * D2;
+        let data = unsafe { Vec::from(std::slice::from_raw_parts(ptr, length)) };
+        B::new_tensor(Shape([D2, D]), data)
+    }
+}
+
 impl<B: Backend, const D: usize, const D2: usize, const D3: usize, const D4: usize>
     From<[[[[f32; D]; D2]; D3]; D4]> for Tensor<B, 4, f32>
 {
