@@ -10,4 +10,3 @@ edition = "2021"
 [workspace.dependencies]
 spirv-std = "0.9"
 spirv-builder = "0.9"
-clap = "4"

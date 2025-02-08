@@ -3,7 +3,7 @@ use std::process::Command;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let current_dir = std::env::current_dir()?;
     let mut build_dir = current_dir.clone();
-    build_dir.push("../shaders");
+    build_dir.push("../../shaders");
     let build_dir = build_dir.canonicalize()?;
 
     println!("Current dir: {:?}, build dir: {:?}", current_dir, build_dir);

@@ -1,0 +1,8 @@
+[package]
+name = "afterburner-rustgpu-shared"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+bytemuck = { workspace = true, features = ["derive"] }
+spirv-std = { workspace = true }

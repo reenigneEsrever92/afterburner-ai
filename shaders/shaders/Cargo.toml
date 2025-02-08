@@ -1,5 +1,5 @@
 [package]
-name = "shaders"
+name = "afterbuner-ai-shaders"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,3 +8,4 @@ crate-type = ["dylib"]
 
 [dependencies]
 spirv-std = { workspace = true }
+afterburner-rustgpu-shared = { path = "../../afterburner/afterburner-rustgpu-shared" }

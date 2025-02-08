@@ -1,7 +1,11 @@
 [workspace]
 resolver = "2"
-members = ["crates/*", "examples/*"]
-exclude = ["crates/shaders", "crates/shaders/shaders", "crates/shaders/builder"]
+members = [
+    "afterburner-core",
+    "afterburner-cpu",
+    "afterburner-rustgpu",
+    "afterburner-rustgpu-shared",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -15,3 +19,4 @@ wgpu = "0.19"
 smol = "2"
 bytemuck = "1"
 lazy_static = "1"
+spirv-std = "0.9"
