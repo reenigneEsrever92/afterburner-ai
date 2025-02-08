@@ -1,7 +1,0 @@
-[package]
-name = "yolov3"
-version.workspace = true
-edition.workspace = true
-
-[dependencies]
-afterburner-rustgpu = { path = "../../crates/afterburner-rustgpu" }

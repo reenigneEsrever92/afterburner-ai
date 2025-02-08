@@ -1,0 +1,12 @@
+[package]
+name = "afterburner-examples"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+afterburner-rustgpu = { path = "../afterburner/afterburner-rustgpu" }
+clap = { version = "4.5" }
+image = { version = "0.25" }
+egui = { version = "0.31.0" }
+egui_extras = { version = "0.31", features = ["all_loaders"] }
+eframe = { version = "0.31" }

@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["shaders", "builder"]
+members = ["afterburner-shaders", "builder"]
 
 [workspace.package]
 name = "afterburner-shaders"

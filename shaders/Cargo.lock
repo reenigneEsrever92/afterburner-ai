@@ -3,14 +3,6 @@
 version = 3
 
 [[package]]
-name = "afterbuner-ai-shaders"
-version = "0.1.0"
-dependencies = [
- "afterburner-rustgpu-shared",
- "spirv-std",
-]
-
-[[package]]
 name = "afterburner-ai-builder"
 version = "0.1.0"
 dependencies = [
@@ -22,6 +14,14 @@ name = "afterburner-rustgpu-shared"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
+ "spirv-std",
+]
+
+[[package]]
+name = "afterburner-shaders"
+version = "0.1.0"
+dependencies = [
+ "afterburner-rustgpu-shared",
  "spirv-std",
 ]
 

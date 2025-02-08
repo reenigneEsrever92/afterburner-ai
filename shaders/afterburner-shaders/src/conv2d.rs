@@ -1,6 +1,4 @@
-#![no_std]
 use afterburner_rustgpu_shared::*;
-
 use spirv_std::glam::UVec3;
 use spirv_std::spirv;
 
