@@ -5,7 +5,6 @@ use lazy_static::lazy_static;
 use afterburner_core::prelude::*;
 
 pub mod conv2d;
-pub mod convert;
 pub mod prelude;
 
 lazy_static! {

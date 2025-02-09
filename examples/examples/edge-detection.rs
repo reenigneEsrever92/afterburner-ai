@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use afterburner_rustgpu::{prelude::Tensor, RustGpu};
+use afterburner_rustgpu::prelude::*;
 use eframe::egui as ef;
 use egui::{ColorImage, TextureOptions};
 use image::{EncodableLayout, ImageBuffer, Rgb};
