@@ -6,6 +6,7 @@ use egui::{ColorImage, TextureOptions};
 use image::{EncodableLayout, ImageBuffer, Rgb};
 
 fn main() {
+    init();
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
         "My egui App",
@@ -37,7 +38,7 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &ef::Context, _frame: &mut eframe::Frame) {
         let bytes = self.img.to_vec();
         let t: Tensor<RustGpu, 1, u8> = bytes.into();
-        let t: Tensor<_, _, f32> = t.convert();
+        let t: Tensor<_, 1, f32> = t.convert();
 
         let image = ColorImage::from_rgb(
             [self.img.width() as _, self.img.height() as _],

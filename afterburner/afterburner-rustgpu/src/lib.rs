@@ -346,7 +346,8 @@ pub fn init() {
         let (device, queue) = adapter
             .request_device(
                 &wgpu::DeviceDescriptor {
-                    required_features: Features::PUSH_CONSTANTS,
+                    required_features: Features::PUSH_CONSTANTS
+                        | Features::SPIRV_SHADER_PASSTHROUGH,
                     required_limits: Limits {
                         max_push_constant_size: 128,
                         ..Default::default()
