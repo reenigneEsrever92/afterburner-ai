@@ -9,3 +9,7 @@ crate-type = ["dylib"]
 [dependencies]
 spirv-std = { workspace = true }
 afterburner-rustgpu-shared = { path = "../../afterburner/afterburner-rustgpu-shared" }
+
+[dev-dependencies]
+tracing = { workspace = true }
+tracing-test = { workspace = true }

@@ -2,8 +2,8 @@ use std::{collections::HashMap, ops::Deref, sync::Mutex};
 
 use afterburner_core::prelude::*;
 use wgpu::{
-    util::{BufferInitDescriptor, DeviceExt},
-    Buffer, BufferDescriptor, BufferUsages, Features, Limits,
+    util::{make_spirv, BufferInitDescriptor, DeviceExt},
+    Buffer, BufferDescriptor, BufferUsages, Features, Limits, PipelineCompilationOptions,
 };
 
 pub mod conv2d;
@@ -85,7 +85,92 @@ impl RustGpuBackend {
         Ok(result)
     }
 
-    pub fn run_shader<T>(
+    pub fn delete_buffer(&mut self, id: usize) {
+        self.buffers.remove(&id);
+    }
+
+    pub fn run_shader(&mut self, entry_point: &str, buffer1_id: usize, output_buffer_id: usize) {
+        let buffer_1 = self.buffers.get(&buffer1_id).unwrap();
+        let output_buffer = self.buffers.get(&output_buffer_id).unwrap();
+
+        let bind_group_layout =
+            self.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            count: None,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            },
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            count: None,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                                ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            },
+                        },
+                    ],
+                });
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: None,
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer_1.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: output_buffer.as_entire_binding(),
+                },
+            ],
+        });
+
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[],
+            });
+
+        let compute_pipeline =
+            self.device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("Compute Pipeline"),
+                    layout: Some(&pipeline_layout),
+                    module: &self.shader,
+                    entry_point: Some(entry_point),
+                    compilation_options: PipelineCompilationOptions::default(),
+                    cache: None,
+                });
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        {
+            let mut cpass = encoder.begin_compute_pass(&Default::default());
+
+            cpass.set_bind_group(0, &bind_group, &[]);
+            cpass.set_pipeline(&compute_pipeline);
+            cpass.dispatch_workgroups(64, 1, 1);
+        }
+
+        self.queue.submit(Some(encoder.finish()));
+    }
+
+    pub fn run_shader_with_params<T>(
         &mut self,
         entry_point: &str,
         buffer1_id: usize,
@@ -155,7 +240,9 @@ impl RustGpuBackend {
                     label: Some("Compute Pipeline"),
                     layout: Some(&pipeline_layout),
                     module: &self.shader,
-                    entry_point,
+                    entry_point: Some(entry_point),
+                    compilation_options: PipelineCompilationOptions::default(),
+                    cache: None,
                 });
 
         let mut encoder = self
@@ -260,7 +347,9 @@ impl RustGpuBackend {
                     label: Some("Compute Pipeline"),
                     layout: Some(&pipeline_layout),
                     module: &self.shader,
-                    entry_point,
+                    entry_point: Some(entry_point),
+                    compilation_options: PipelineCompilationOptions::default(),
+                    cache: None,
                 });
 
         let mut encoder = self
@@ -326,12 +415,22 @@ impl Backend for RustGpu {
             panic!("RustGpu backend has not been initialized call init() first!");
         }
     }
+
+    fn delete_tensor<const D: usize, T: Clone>(t: &mut Tensor<Self, D, T>) {
+        let mut lock = BACKEND.lock().unwrap();
+
+        if let Some(backend) = lock.as_mut() {
+            backend.delete_buffer(t.id);
+        } else {
+            panic!("RustGpu backend has not been initialized call init() first!");
+        }
+    }
 }
 
 pub fn init() {
     let backend = smol::block_on(async move {
-        let instance = wgpu::Instance::new(wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::PRIMARY,
+        let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
+            backends: wgpu::Backends::VULKAN,
             ..Default::default()
         });
 
@@ -359,10 +458,12 @@ pub fn init() {
             .await
             .unwrap();
 
-        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Shader"),
-            source: wgpu::ShaderSource::SpirV(wgpu::util::make_spirv_raw(SHADER)),
-        });
+        let shader = unsafe {
+            device.create_shader_module_spirv(&wgpu::ShaderModuleDescriptorSpirV {
+                label: Some("Shader"),
+                source: wgpu::util::make_spirv_raw(SHADER),
+            })
+        };
 
         RustGpuBackend {
             adapter,

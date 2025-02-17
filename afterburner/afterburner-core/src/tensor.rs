@@ -7,7 +7,7 @@ use crate::{backend::Backend, shape::Shape};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Tensor<B: Backend, const D: usize, T: Clone> {
     pub id: usize,
     pub shape: Shape<D>,
@@ -43,6 +43,12 @@ impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
     #[inline]
     pub fn size(&self) -> usize {
         std::mem::size_of::<T>() * self.shape.size()
+    }
+}
+
+impl<B: Backend, const D: usize, T: Clone> Drop for Tensor<B, D, T> {
+    fn drop(&mut self) {
+        B::delete_tensor(self);
     }
 }
 

@@ -38,6 +38,11 @@ impl Backend for Cpu {
 
         t
     }
+
+    fn delete_tensor<const D: usize, T: Clone>(t: &mut Tensor<Self, D, T>) {
+        let mut lock = DATA.lock().unwrap();
+        lock.remove(&t.id);
+    }
 }
 
 #[cfg(test)]

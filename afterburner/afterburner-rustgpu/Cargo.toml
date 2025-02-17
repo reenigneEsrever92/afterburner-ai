@@ -8,6 +8,7 @@ afterburner-core = { path = "../afterburner-core" }
 afterburner-rustgpu-shared = { path = "../afterburner-rustgpu-shared" }
 wgpu = { workspace = true, features = ["spirv", "vulkan-portability"] }
 smol = { workspace = true }
-bytemuck = { workspace = true }
 thiserror = { workspace = true }
 lazy_static = { workspace = true }
+tracing = { workspace = true }
+tracing-test = { workspace = true }

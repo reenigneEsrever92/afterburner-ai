@@ -11,3 +11,9 @@ pub struct RustGpuConv2DParams {
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct RustGpuShape<const D: usize>(pub [usize; D]);
+
+impl<const D: usize> RustGpuShape<D> {
+    pub fn as_slice(&self) -> &[usize; D] {
+        &self.0
+    }
+}
