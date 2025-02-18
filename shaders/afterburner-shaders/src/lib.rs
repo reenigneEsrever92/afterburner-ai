@@ -1,4 +1,5 @@
-#![no_std]
+#![cfg_attr(target_arch = "spirv", no_std)]
+#![feature(generic_const_exprs)]
 
 use afterburner_rustgpu_shared::*;
 use spirv_std::{glam::UVec3, spirv};

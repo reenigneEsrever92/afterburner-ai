@@ -38,6 +38,8 @@ pub fn conv2d(
 
 #[cfg(test)]
 mod test {
+    use core::fmt::Debug;
+
     use afterburner_rustgpu_shared::{RustGpuConv2DParams, RustGpuShape};
     use spirv_std::glam::UVec3;
     use tracing_test::traced_test;
@@ -64,5 +66,58 @@ mod test {
             .for_each(|x| conv2d(x as usize, &params, &input, &weights, &mut output));
 
         assert_eq!(output, [2.0f32]);
+    }
+
+    #[test]
+    fn test_conv2d_2() {
+        let input = flatten([
+            [
+                [[1.0f32, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+                [[2.0, 2.0, 2.0], [2.0, 2.0, 2.0], [2.0, 2.0, 2.0]],
+            ],
+            [
+                [[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]],
+                [[2.0, 2.0, 2.0], [2.0, 2.0, 2.0], [2.0, 2.0, 2.0]],
+            ],
+        ]);
+
+        let weights = flatten([[[[2.0f32]], [[3.0]]], [[[4.0]], [[5.0]]]]);
+
+        let mut output = [0f32; 2 * 2 * 2 * 2];
+
+        let params = RustGpuConv2DParams {
+            dimensions: RustGpuShape([1, 1, 1, 1]),
+            conv: RustGpuShape([1, 1, 1, 1]),
+            stride: RustGpuShape([1, 1]),
+        };
+
+        let src_range = 0..2 * 2 * 2 * 2;
+
+        let result = src_range
+            .clone()
+            .into_iter()
+            .for_each(|x| conv2d(x as usize, &params, &input, &weights, &mut output));
+
+        let expected = flatten([
+            [[[8f32, 8.], [8., 8.]], [[14., 14.], [14., 14.]]],
+            [[[8., 8.], [8., 8.]], [[14., 14.], [14., 14.]]],
+        ]);
+
+        assert_eq!(output, expected);
+    }
+
+    fn flatten<const D: usize, const D2: usize, const D3: usize, const D4: usize, T: Debug>(
+        data: [[[[T; D]; D2]; D3]; D4],
+    ) -> [T; D * D2 * D3 * D4] {
+        data.into_iter()
+            .flatten()
+            .into_iter()
+            .flatten()
+            .into_iter()
+            .flatten()
+            .into_iter()
+            .collect::<Vec<_>>()
+            .try_into()
+            .unwrap()
     }
 }
