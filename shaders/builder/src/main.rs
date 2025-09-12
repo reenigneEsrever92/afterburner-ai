@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // println!("In process vars: {:?}", std::env::vars());
     // let args = Args::parse();
     // std::env::set_current_dir(args.path);
-    SpirvBuilder::new("afterburner-shaders", "spirv-unknown-vulkan1.1")
+    SpirvBuilder::new("afterburner-shaders", "spirv-unknown-spv1.3")
         .capability(spirv_builder::Capability::Int8)
         .build()?;
     Ok(())
