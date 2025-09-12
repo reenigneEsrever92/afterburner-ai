@@ -48,6 +48,7 @@ impl Backend for Cpu {
 #[cfg(test)]
 mod test {
     use afterburner_core::prelude::*;
+    use afterburner_ops::prelude::*;
     use tracing_test::traced_test;
 
     use crate::Cpu;

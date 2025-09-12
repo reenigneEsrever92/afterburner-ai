@@ -1,0 +1,7 @@
+[package]
+name = "afterburner-ops"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+afterburner-core = { path = "../afterburner-core" }

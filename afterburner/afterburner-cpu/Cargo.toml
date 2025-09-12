@@ -6,7 +6,9 @@ edition.workspace = true
 [dependencies]
 tracing = { workspace = true }
 lazy_static = { workspace = true }
+
 afterburner-core = { path = "../afterburner-core" }
+afterburner-ops = { path = "../afterburner-ops" }
 
 [dev-dependencies]
 tracing-test = { workspace = true }

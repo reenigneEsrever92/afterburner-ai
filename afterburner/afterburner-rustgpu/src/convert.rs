@@ -1,6 +1,6 @@
 use afterburner_core::prelude::*;
 
-use crate::{run_with_backend, RustGpu};
+use crate::{RustGpu, run_with_backend};
 
 impl<const D: usize> ConvertImpl<RustGpu, D, u8, f32> for RustGpu {
     fn convert(input: &Tensor<RustGpu, D, u8>) -> Tensor<RustGpu, D, f32> {
@@ -10,6 +10,7 @@ impl<const D: usize> ConvertImpl<RustGpu, D, u8, f32> for RustGpu {
             backend
                 .create_buffer(t.id, t.size())
                 .expect("New buffer created");
+
             backend.run_shader("convert_u8_f32", input.id, t.id);
 
             t
@@ -22,7 +23,7 @@ mod test {
     use afterburner_core::{prelude::Convert, tensor::Tensor};
     use tracing_test::traced_test;
 
-    use crate::{init, RustGpu};
+    use crate::{RustGpu, init};
 
     #[test]
     #[traced_test]

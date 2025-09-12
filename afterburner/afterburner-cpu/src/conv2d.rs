@@ -86,7 +86,7 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
 
 #[cfg(test)]
 mod test {
-    use afterburner_core::prelude::*;
+    use crate::prelude::*;
     use tracing_test::traced_test;
 
     use crate::Cpu;

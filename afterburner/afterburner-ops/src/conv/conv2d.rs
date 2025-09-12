@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use afterburner_core::prelude::*;
 
 #[derive(Debug, Clone, Default)]
 pub struct Conv2DParams {

@@ -3,13 +3,14 @@ resolver = "2"
 members = [
     "afterburner-core",
     "afterburner-cpu",
+    "afterburner-ops",
     "afterburner-rustgpu",
     "afterburner-rustgpu-shared",
 ]
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [workspace.dependencies]
 tracing = "0.1"
