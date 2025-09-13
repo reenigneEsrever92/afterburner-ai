@@ -7,6 +7,7 @@
 //! - Image loading and display using egui
 //! - RGB to grayscale conversion
 //! - Sobel edge detection using Conv2D with CPU backend
+//! - Batch normalization applied to edge detection results
 //! - Side-by-side image comparison
 //! - Real-time processing with progress indication
 //! - Padding support to maintain input image dimensions
@@ -16,6 +17,7 @@
 //! - 4D tensors with shape [batch=1, channels=1, height, width]
 //! - Sobel X kernel for horizontal edge detection: [-1, 0, 1, -2, 0, 2, -1, 0, 1]
 //! - Conv2D operations with stride [1, 1] and padding [1, 1]
+//! - Batch normalization for stable edge detection results
 //! - CPU backend for reliable processing of large images
 //! - Automatic scaling to convert edge values to visible grayscale intensities
 
@@ -67,7 +69,7 @@ impl App {
         }
 
         self.processing = true;
-        self.processing_method = Some("CPU Conv2D".to_string());
+        self.processing_method = Some("CPU Conv2D + BatchNorm".to_string());
 
         // Convert RGB image to grayscale for edge detection
         let width = self.original_img.width() as usize;
@@ -98,7 +100,20 @@ impl App {
         // Apply edge detection using CPU backend
         let edges_result = input_tensor.conv_2d(&kernel_x, conv_params);
 
-        match edges_result {
+        // Apply batch normalization to the edge detection results
+        let bn_edges_result = edges_result.and_then(|edges_tensor| {
+            // Create gamma and beta parameters for batch normalization
+            // Single channel output from Sobel, so we need 1-dimensional gamma and beta
+            let gamma: Tensor<afterburner_cpu::Cpu, 1, f32> =
+                afterburner_cpu::Cpu::new_tensor(Shape([1]), vec![1.0]); // No scaling
+            let beta: Tensor<afterburner_cpu::Cpu, 1, f32> =
+                afterburner_cpu::Cpu::new_tensor(Shape([1]), vec![0.0]); // No shift
+
+            // Apply batch normalization with default parameters (epsilon = 1e-5)
+            edges_tensor.batch_norm(&gamma, &beta, BatchNormParams::default())
+        });
+
+        match bn_edges_result {
             Ok(edges_tensor) => {
                 // Get the edge data from the tensor
                 let edge_data = edges_tensor.to_vec();
@@ -234,7 +249,7 @@ impl eframe::App for App {
 
             ui.separator();
             ui.label("This example demonstrates edge detection using Sobel operators implemented with Conv2D operations.");
-            ui.label("The implementation uses CPU-based convolution with padding for reliable edge detection.");
+            ui.label("The implementation uses CPU-based convolution with padding and batch normalization for reliable edge detection.");
 
             if let Some(ref method) = self.processing_method {
                 if self.edge_img.is_some() {

@@ -12,6 +12,7 @@ A complete implementation of edge detection using Sobel operators with GPU-accel
 - Loads and displays images using `egui` GUI framework
 - Converts RGB images to grayscale for processing
 - Implements Sobel edge detection using Conv2D operations on GPU
+- Batch normalization applied to edge detection results
 - Side-by-side comparison of original and edge-detected images
 - Real-time processing with progress indicators
 - Proper error handling and reporting
@@ -31,6 +32,7 @@ cargo run --example edge-detection
 - Uses the Sobel X kernel: `[-1, 0, 1, -2, 0, 2, -1, 0, 1]`
 - Creates 4D tensors with shape `[batch, channels, height, width]`
 - Applies convolution with stride `[1, 1]` and padding `[1, 1]`
+- Batch normalization with configurable gamma and beta parameters
 - Padding maintains input image dimensions in output
 - CPU backend provides reliable processing for large images
 - Adaptive scaling ensures edge visibility across different image types
@@ -68,14 +70,16 @@ These examples demonstrate the Afterburner AI framework's key components:
 1. **Tensor Operations**: Creating and manipulating multi-dimensional tensors
 2. **Backend Abstraction**: Seamless switching between GPU (RustGPU) and CPU backends
 3. **Conv2D Operations**: GPU-accelerated 2D convolution with configurable stride and padding
-4. **Type Conversions**: Converting between different data types (u8 ↔ f32)
-5. **GUI Integration**: Real-time visualization using `egui`
+4. **Batch Normalization**: Normalizing tensor values with learnable scale and shift parameters
+5. **Type Conversions**: Converting between different data types (u8 ↔ f32)
+6. **GUI Integration**: Real-time visualization using `egui`
 
 ## Development Notes
 
 - The framework uses compute shaders compiled to SPIR-V for GPU operations
 - Tensor shapes follow the convention `[batch, channels, height, width]` for 4D tensors
 - Conv2D operations support configurable stride and padding parameters
+- Batch normalization normalizes activations with learnable gamma and beta parameters
 - Padding enables control over output dimensions (same-size with padding=1, or smaller without)
 - Error handling includes proper reporting when GPU operations fail
 - Examples are designed to be educational and demonstrate best practices
@@ -86,9 +90,10 @@ These examples demonstrate the Afterburner AI framework's key components:
 The edge detection example uses CPU-based processing with padding support:
 
 1. **CPU Processing**: Uses reliable CPU-based Conv2D operations with full padding support
-2. **Padding Implementation**: Maintains input image dimensions using `padding=[1, 1]`
-3. **Adaptive Scaling**: Automatically scales edge values for optimal visibility
-4. **Full Image Processing**: Handles large images (tested with 2560×1707 resolution)
+2. **Batch Normalization**: Applies normalization to stabilize edge detection results
+3. **Padding Implementation**: Maintains input image dimensions using `padding=[1, 1]`
+4. **Adaptive Scaling**: Automatically scales edge values for optimal visibility
+5. **Full Image Processing**: Handles large images (tested with 2560×1707 resolution)
 
 **Expected Processing:**
 - Converts RGB to grayscale using standard luminance formula
@@ -121,3 +126,21 @@ The Conv2D operations now support the following parameters:
 - **padding**: `Shape<2>` - Controls zero-padding around input borders
   - Default: `[0, 0]` (no padding)
   - Example: `[1, 1]` to maintain input dimensions with 3x3 kernels
+
+## Batch Normalization Parameters
+
+The Batch Normalization operations support the following parameters:
+
+- **epsilon**: `f32` - Small value added to variance for numerical stability
+  - Default: `1e-5`
+  - Prevents division by zero when variance is very small
+
+- **gamma**: `Tensor<_, 1, f32>` - Learnable scale parameter per channel
+  - Shape: `[num_channels]`
+  - Default: `[1.0]` (no scaling)
+
+- **beta**: `Tensor<_, 1, f32>` - Learnable shift parameter per channel
+  - Shape: `[num_channels]`
+  - Default: `[0.0]` (no shift)
+
+**Batch Normalization Formula**: `output = gamma * (input - mean) / sqrt(variance + epsilon) + beta`
