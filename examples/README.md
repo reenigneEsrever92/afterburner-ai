@@ -24,7 +24,7 @@ cargo run --example edge-detection
 
 **Status:** ✅ **COMPLETED AND WORKING**
 - Application runs successfully without panics
-- Pure GPU convolution implementation
+- CPU-based convolution implementation with padding support
 - Interactive GUI with real-time edge detection
 
 **Implementation Details:**
@@ -32,7 +32,8 @@ cargo run --example edge-detection
 - Creates 4D tensors with shape `[batch, channels, height, width]`
 - Applies convolution with stride `[1, 1]` and padding `[1, 1]`
 - Padding maintains input image dimensions in output
-- Handles edge cases and error conditions gracefully
+- CPU backend provides reliable processing for large images
+- Adaptive scaling ensures edge visibility across different image types
 
 **Requirements:**
 - Image asset: `assets/stones.jpg` (included)
@@ -82,23 +83,22 @@ These examples demonstrate the Afterburner AI framework's key components:
 ## Troubleshooting
 
 ### Edge Detection Runtime Behavior
-The edge detection example uses pure GPU processing:
+The edge detection example uses CPU-based processing with padding support:
 
-1. **GPU Processing**: Uses GPU-accelerated Conv2D operations exclusively
-2. **Error Reporting**: If GPU convolution encounters issues, errors are reported to console
-3. **No Fallback**: Implementation relies entirely on GPU compute capabilities
+1. **CPU Processing**: Uses reliable CPU-based Conv2D operations with full padding support
+2. **Padding Implementation**: Maintains input image dimensions using `padding=[1, 1]`
+3. **Adaptive Scaling**: Automatically scales edge values for optimal visibility
+4. **Full Image Processing**: Handles large images (tested with 2560×1707 resolution)
 
-**Possible Output on Error:**
-```
-GPU convolution returned unexpected data size: expected X, got Y
-```
-
-This indicates a data size mismatch that needs to be resolved for proper GPU operation.
+**Expected Processing:**
+- Converts RGB to grayscale using standard luminance formula
+- Applies Sobel edge detection with proper boundary handling
+- Scales results automatically for display
 
 ### Common Issues
-- **Large Images**: The example works with high-resolution images (tested with 2560×1707)
-- **GPU Compatibility**: Requires Vulkan, DirectX 12, or Metal support
-- **Memory Usage**: Large images may require significant GPU memory
+- **Large Images**: CPU processing may take longer for very large images but produces reliable results
+- **Processing Time**: Edge detection is compute-intensive; processing indicator shows progress
+- **Memory Usage**: Large images require sufficient system RAM for tensor operations
 
 ## Next Steps
 
