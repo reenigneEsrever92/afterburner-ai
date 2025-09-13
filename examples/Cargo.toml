@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 afterburner-rustgpu = { path = "../afterburner/afterburner-rustgpu" }
+afterburner-cpu = { path = "../afterburner/afterburner-cpu" }
 clap = { version = "4.5" }
 image = { version = "0.25" }
 egui = { version = "0.31.0" }

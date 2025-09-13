@@ -1,8 +1,18 @@
 use afterburner_core::prelude::*;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct Conv2DParams {
     pub stride: Shape<2>,
+    pub padding: Shape<2>,
+}
+
+impl Default for Conv2DParams {
+    fn default() -> Self {
+        Self {
+            stride: Shape([1, 1]),
+            padding: Shape([0, 0]), // Zero padding by default
+        }
+    }
 }
 
 pub trait Conv2DImpl<B: Backend, T: Clone> {

@@ -11,70 +11,88 @@ impl Conv2DImpl<Cpu, f32> for Cpu {
         debug!(?tensor, ?weights, ?params, "Convoluting tensor");
 
         let stride = &params.stride;
+        let padding = &params.padding;
+
+        // Calculate output dimensions with padding:
+        // out_size = (input_size + 2*padding - kernel_size) / stride + 1
+        let in_height = tensor.shape().as_slice()[2];
+        let in_width = tensor.shape().as_slice()[3];
+        let kernel_height = weights.shape().as_slice()[2];
+        let kernel_width = weights.shape().as_slice()[3];
+
+        let out_height =
+            (in_height + 2 * padding.as_slice()[0] - kernel_height) / stride.as_slice()[0] + 1;
+        let out_width =
+            (in_width + 2 * padding.as_slice()[1] - kernel_width) / stride.as_slice()[1] + 1;
 
         let new_shape: Shape<4> = [
-            tensor.shape().as_slice()[0],
-            weights.shape().as_slice()[1],
-            tensor.shape().as_slice()[2] / stride.as_slice()[0] - weights.shape().as_slice()[2] / 2,
-            tensor.shape().as_slice()[3] / stride.as_slice()[1] - weights.shape().as_slice()[3] / 2,
+            tensor.shape().as_slice()[0],  // batch size
+            weights.shape().as_slice()[0], // output channels
+            out_height,
+            out_width,
         ]
         .into();
 
         // new tensor
         let mut result: Vec<f32> = vec![0f32; new_shape.size()];
 
-        for out_channel in 0..weights.shape().as_slice()[0] {
-            debug!(?out_channel, "Convoluting out channel");
-            for batch in 0..tensor.shape().as_slice()[0] {
-                debug!(?batch, "Convoluting batch");
-                for channel in 0..tensor.shape().as_slice()[1] {
-                    debug!(?channel, "Convoluting channel");
-                    for tensor_y in
-                        0..tensor.shape().as_slice()[2] - weights.shape().as_slice()[2] / 2
-                    {
-                        for tensor_x in
-                            0..tensor.shape().as_slice()[3] - weights.shape().as_slice()[3] / 2
-                        {
-                            for weight_y in 0..weights.shape().as_slice()[2] {
-                                for weight_x in 0..weights.shape().as_slice()[3] {
-                                    let output_index = batch * new_shape.size_for_dimension(1)
-                                        + out_channel * new_shape.size_for_dimension(2)
-                                        + tensor_y * new_shape.size_for_dimension(3)
-                                        + tensor_x;
+        let input_data = tensor.to_vec();
+        let weight_data = weights.to_vec();
+        let pad_h = padding.as_slice()[0];
+        let pad_w = padding.as_slice()[1];
 
-                                    let input_index = batch * tensor.shape().size_for_dimension(1)
-                                        + channel * tensor.shape().size_for_dimension(2)
-                                        + tensor_y * tensor.shape().size_for_dimension(3)
-                                        + tensor_x
-                                        + weight_y * tensor.shape().size_for_dimension(3)
-                                        + weight_x;
+        for batch in 0..tensor.shape().as_slice()[0] {
+            debug!(?batch, "Convoluting batch");
+            for out_channel in 0..weights.shape().as_slice()[0] {
+                debug!(?out_channel, "Convoluting out channel");
+                for out_y in 0..out_height {
+                    for out_x in 0..out_width {
+                        let mut sum = 0.0f32;
 
-                                    let weight_index = out_channel
-                                        * weights.shape().size_for_dimension(1)
-                                        + channel * weights.shape().size_for_dimension(2)
-                                        + weight_y * weights.shape().size_for_dimension(3)
-                                        + weight_x;
+                        for in_channel in 0..tensor.shape().as_slice()[1] {
+                            for ky in 0..kernel_height {
+                                for kx in 0..kernel_width {
+                                    let in_y = out_y * stride.as_slice()[0] + ky;
+                                    let in_x = out_x * stride.as_slice()[1] + kx;
 
-                                    let weight = weights.to_vec()[weight_index];
+                                    // Apply padding offset with bounds checking
+                                    let in_y_with_pad = in_y as isize - pad_h as isize;
+                                    let in_x_with_pad = in_x as isize - pad_w as isize;
 
-                                    let input = tensor.to_vec()[input_index];
+                                    // Check bounds (padding adds zeros outside bounds)
+                                    if in_y_with_pad >= 0
+                                        && in_x_with_pad >= 0
+                                        && (in_y_with_pad as usize) < in_height
+                                        && (in_x_with_pad as usize) < in_width
+                                    {
+                                        let input_index = batch
+                                            * tensor.shape().size_for_dimension(1)
+                                            + in_channel * tensor.shape().size_for_dimension(2)
+                                            + (in_y_with_pad as usize)
+                                                * tensor.shape().size_for_dimension(3)
+                                            + (in_x_with_pad as usize);
 
-                                    let value = result[output_index] + input * weight;
+                                        let weight_index = out_channel
+                                            * weights.shape().size_for_dimension(1)
+                                            + in_channel * weights.shape().size_for_dimension(2)
+                                            + ky * weights.shape().size_for_dimension(3)
+                                            + kx;
 
-                                    result[output_index] = value;
-
-                                    debug!(
-                                        ?input_index,
-                                        ?input,
-                                        ?weight_index,
-                                        ?weight,
-                                        ?output_index,
-                                        ?value,
-                                        "Updating result tensor"
-                                    )
+                                        sum += input_data[input_index] * weight_data[weight_index];
+                                    }
+                                    // If out of bounds due to padding, we implicitly add 0 (no operation needed)
                                 }
                             }
                         }
+
+                        let output_index = batch * new_shape.size_for_dimension(1)
+                            + out_channel * new_shape.size_for_dimension(2)
+                            + out_y * new_shape.size_for_dimension(3)
+                            + out_x;
+
+                        result[output_index] = sum;
+
+                        debug!(?output_index, ?sum, "Setting result tensor value");
                     }
                 }
             }
@@ -126,7 +144,15 @@ mod test {
             [[[3.0, 3.0], [3.0, 3.0]], [[4.0, 4.0], [4.0, 4.0]]],
         ]);
 
-        let result = tensor.conv_2d(&weights, Conv2DParams::default()).unwrap();
+        let result = tensor
+            .conv_2d(
+                &weights,
+                Conv2DParams {
+                    stride: Shape([1, 1]),
+                    padding: Shape([0, 0]),
+                },
+            )
+            .unwrap();
 
         let shape = result.shape().to_owned();
 

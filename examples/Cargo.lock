@@ -126,9 +126,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "afterburner-cpu"
+version = "0.1.0"
+dependencies = [
+ "afterburner-core",
+ "afterburner-ops",
+ "lazy_static",
+ "tracing",
+]
+
+[[package]]
 name = "afterburner-examples"
 version = "0.1.0"
 dependencies = [
+ "afterburner-cpu",
  "afterburner-rustgpu",
  "clap",
  "eframe",
