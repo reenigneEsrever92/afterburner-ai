@@ -17,16 +17,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let status = cargo
+    let output = cargo
         .current_dir(build_dir)
         .args(["run", "-r", "-p", "afterburner-ai-builder"])
-        .status()?;
+        .output()?;
 
-    if !status.success() {
-        if let Some(code) = status.code() {
+    if !output.status.success() {
+        eprintln!(
+            "Builder failed with stderr: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        if let Some(code) = output.status.code() {
             std::process::exit(code);
         } else {
             std::process::exit(1);
+        }
+    }
+
+    // Parse the output to find the cargo:rustc-env line and forward it
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    for line in stdout.lines() {
+        if line.starts_with("cargo:rustc-env=") {
+            println!("{}", line);
         }
     }
 

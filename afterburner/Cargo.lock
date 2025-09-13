@@ -47,6 +47,9 @@ dependencies = [
 [[package]]
 name = "afterburner-rustgpu-shared"
 version = "0.1.0"
+dependencies = [
+ "spirv-std",
+]
 
 [[package]]
 name = "aho-corasick"
@@ -479,6 +482,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "glam"
+version = "0.30.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f2d1aab06663bdce00d6ca5e5ed586ec8d18033a771906c993a1e3755b368d85"
+dependencies = [
+ "libm",
+]
+
+[[package]]
 name = "glow"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -643,6 +655,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "libm"
+version = "0.2.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f9fbbcab51052fe104eb5e5d351cf728d30a5be1fe14d9be8a3b097481fb97de"
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -757,6 +775,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
+ "libm",
 ]
 
 [[package]]
@@ -1054,6 +1073,35 @@ checksum = "eda41003dc44290527a59b13432d4a0379379fa074b70174882adfbdfd917844"
 dependencies = [
  "bitflags 2.9.4",
 ]
+
+[[package]]
+name = "spirv-std"
+version = "0.9.0"
+source = "git+https://github.com/Rust-GPU/rust-gpu.git?branch=main#7358fae6ec6330c5f6dd435a5d41744f32543ffb"
+dependencies = [
+ "bitflags 1.3.2",
+ "glam",
+ "libm",
+ "num-traits",
+ "spirv-std-macros",
+ "spirv-std-types",
+]
+
+[[package]]
+name = "spirv-std-macros"
+version = "0.9.0"
+source = "git+https://github.com/Rust-GPU/rust-gpu.git?branch=main#7358fae6ec6330c5f6dd435a5d41744f32543ffb"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "spirv-std-types",
+ "syn",
+]
+
+[[package]]
+name = "spirv-std-types"
+version = "0.9.0"
+source = "git+https://github.com/Rust-GPU/rust-gpu.git?branch=main#7358fae6ec6330c5f6dd435a5d41744f32543ffb"
 
 [[package]]
 name = "static_assertions"

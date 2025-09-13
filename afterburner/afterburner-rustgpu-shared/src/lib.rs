@@ -1,12 +1,7 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
+#![feature(generic_const_exprs)]
 
-#[repr(C)]
-#[derive(Copy, Clone)]
-pub struct RustGpuConv2DParams {
-    pub dimensions: RustGpuShape<4>,
-    pub conv: RustGpuShape<4>,
-    pub stride: RustGpuShape<2>,
-}
+pub mod conv2d;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

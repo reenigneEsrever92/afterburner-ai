@@ -1,6 +1,6 @@
 use afterburner_core::prelude::*;
 use afterburner_ops::prelude::*;
-use afterburner_rustgpu_shared::{RustGpuConv2DParams, RustGpuShape};
+use afterburner_rustgpu_shared::{conv2d::RustGpuConv2DParams, RustGpuShape};
 
 use crate::{run_with_backend, RustGpu};
 
