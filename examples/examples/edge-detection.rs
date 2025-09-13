@@ -1,24 +1,25 @@
-//! GPU-Accelerated Edge Detection Example
+//! Fully GPU-Accelerated Edge Detection Example
 //!
-//! This example demonstrates edge detection using the Afterburner AI framework
-//! with GPU-accelerated conversions and CPU-based convolution as fallback.
+//! This example demonstrates a complete GPU-based edge detection pipeline using
+//! the Afterburner AI framework with RustGPU compute shaders.
 //!
 //! Features:
-//! - Image loading and display using egui
-//! - GPU-based u8 to f32 conversion
-//! - Sobel edge detection using Conv2D operations
-//! - GPU-based f32 to u8 conversion for display
-//! - Side-by-side image comparison
+//! - Pure GPU pipeline - all operations run on GPU compute shaders
+//! - GPU-based RGB to grayscale conversion
+//! - GPU-accelerated Sobel edge detection using Conv2D
+//! - GPU-based batch normalization for stable results
+//! - GPU-based grayscale to RGB conversion for display
 //! - Real-time processing with progress indication
+//! - Side-by-side image comparison
 //!
-//! The implementation uses:
-//! - GPU convert operations for data type conversion
-//! - 4D tensors with shape [batch=1, channels=1, height, width]
-//! - Sobel X kernel for horizontal edge detection
-//! - Conv2D operations with stride [1, 1] and padding [1, 1]
-//! - Mixed GPU/CPU pipeline for reliable processing
+//! GPU Pipeline:
+//! 1. Load RGB image data to GPU
+//! 2. GPU RGB → Grayscale conversion shader
+//! 3. GPU Sobel Conv2D with padding
+//! 4. GPU Batch normalization
+//! 5. GPU Grayscale → RGB conversion shader
+//! 6. Display results
 
-use afterburner_cpu::prelude::*;
 use afterburner_rustgpu::prelude::*;
 use eframe::egui as ef;
 use egui::{ColorImage, TextureOptions};
@@ -28,7 +29,7 @@ fn main() {
     afterburner_rustgpu::init();
     let native_options = eframe::NativeOptions::default();
     eframe::run_native(
-        "GPU-Enhanced Edge Detection",
+        "Pure GPU Edge Detection",
         native_options,
         Box::new(|cc| Ok(Box::new(App::new(cc)))),
     )
@@ -66,103 +67,133 @@ impl App {
         }
 
         self.processing = true;
-        self.processing_method = Some("GPU Convert + CPU Conv2D".to_string());
+        self.processing_method = Some("Pure GPU Pipeline".to_string());
 
         let width = self.original_img.width() as usize;
         let height = self.original_img.height() as usize;
 
-        // Step 1: Convert RGB image to grayscale using CPU (reliable)
-        let mut grayscale_u8: Vec<u8> = Vec::with_capacity(width * height);
-        for pixel in self.original_img.pixels() {
-            // Convert RGB to grayscale using luminance formula
-            let gray =
-                (0.299 * pixel[0] as f32 + 0.587 * pixel[1] as f32 + 0.114 * pixel[2] as f32) as u8;
-            grayscale_u8.push(gray);
-        }
+        // Step 1: Create RGB tensor on GPU from image data
+        let rgb_data: Vec<u8> = self.original_img.as_raw().to_vec();
+        let rgb_tensor: Tensor<RustGpu, 1, u8> =
+            RustGpu::new_tensor(Shape([width * height * 3]), rgb_data);
 
-        // Step 2: Use GPU to convert u8 to f32
-        let grayscale_u8_tensor: Tensor<RustGpu, 1, u8> =
-            RustGpu::new_tensor(Shape([width * height]), grayscale_u8);
+        // Step 2: GPU RGB to Grayscale conversion
+        let grayscale_tensor: Tensor<RustGpu, 1, f32> =
+            RustGpu::rgb_to_grayscale(&rgb_tensor, width, height);
 
-        let grayscale_f32_tensor: Tensor<RustGpu, 1, f32> = grayscale_u8_tensor.convert();
+        // Step 3: Reshape to 4D tensor for convolution [batch=1, channels=1, height, width]
+        let grayscale_data = grayscale_tensor.to_vec();
+        let input_4d: Tensor<RustGpu, 4, f32> =
+            RustGpu::new_tensor(Shape([1, 1, height, width]), grayscale_data);
 
-        // Step 3: Copy to CPU for convolution (since GPU conv has issues)
-        let grayscale_data = grayscale_f32_tensor.to_vec();
-        let input_tensor: Tensor<afterburner_cpu::Cpu, 4, f32> = afterburner_cpu::Cpu::new_tensor(
-            Shape([1, 1, height, width]),
-            grayscale_data.iter().map(|&x| x / 255.0).collect(), // Normalize to 0-1
-        );
-
-        // Step 4: Create Sobel kernel on CPU
+        // Step 4: Create Sobel X kernel on GPU
         let sobel_x_data = vec![-1.0, 0.0, 1.0, -2.0, 0.0, 2.0, -1.0, 0.0, 1.0];
-        let kernel_x: Tensor<afterburner_cpu::Cpu, 4, f32> =
-            afterburner_cpu::Cpu::new_tensor(Shape([1, 1, 3, 3]), sobel_x_data);
+        let kernel_x: Tensor<RustGpu, 4, f32> =
+            RustGpu::new_tensor(Shape([1, 1, 3, 3]), sobel_x_data);
 
-        // Step 5: Apply CPU convolution with padding
+        // Step 5: GPU Conv2D with padding to maintain image size
         let conv_params = Conv2DParams {
             stride: Shape([1, 1]),
-            padding: Shape([1, 1]), // Maintain input size
+            padding: Shape([1, 1]),
         };
 
-        let edges_result = input_tensor.conv_2d(&kernel_x, conv_params);
+        let conv_result = input_4d.conv_2d(&kernel_x, conv_params);
 
-        match edges_result {
+        match conv_result {
             Ok(edges_tensor) => {
-                let edge_data = edges_tensor.to_vec();
+                // Step 6: GPU Batch Normalization for stable edge values
+                let gamma: Tensor<RustGpu, 1, f32> = RustGpu::new_tensor(Shape([1]), vec![3.0]); // Scale for visibility
+                let beta: Tensor<RustGpu, 1, f32> = RustGpu::new_tensor(Shape([1]), vec![0.0]); // No shift
 
-                // Step 6: Find the data range for proper scaling
-                let min_val = edge_data.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-                let max_val = edge_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+                let bn_result = edges_tensor.batch_norm(&gamma, &beta, BatchNormParams::default());
 
-                // Step 7: Scale edge values and convert to f32 tensor on GPU
-                let mut scaled_edges = Vec::with_capacity(edge_data.len());
-                for &edge_val in &edge_data {
-                    // Scale to 0-255 range
-                    let scaled = if max_val > min_val {
-                        ((edge_val.abs() - min_val.abs()) / (max_val.abs() - min_val.abs()) * 255.0)
-                            .clamp(0.0, 255.0)
-                    } else {
-                        (edge_val.abs() * 255.0).clamp(0.0, 255.0)
-                    };
-                    scaled_edges.push(scaled);
+                match bn_result {
+                    Ok(normalized_edges) => {
+                        // Step 7: Reshape to 1D for image conversion
+                        let edge_data = normalized_edges.to_vec();
+                        let edge_1d: Tensor<RustGpu, 1, f32> =
+                            RustGpu::new_tensor(Shape([width * height]), edge_data);
+
+                        // Step 8: GPU Grayscale to RGB conversion
+                        let rgb_edges: Tensor<RustGpu, 1, u8> =
+                            RustGpu::grayscale_to_rgb(&edge_1d, width, height);
+
+                        // Step 9: Get final RGB data from GPU
+                        let final_rgb_data = rgb_edges.to_vec();
+
+                        // Step 10: Create final edge-detected image
+                        self.edge_img =
+                            ImageBuffer::from_raw(width as u32, height as u32, final_rgb_data);
+
+                        if self.edge_img.is_none() {
+                            eprintln!("Failed to create final image from GPU data");
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("GPU Batch Normalization failed: {:?}", e);
+                        self.fallback_cpu_processing(width, height);
+                    }
                 }
-
-                let edge_f32_tensor: Tensor<RustGpu, 1, f32> =
-                    RustGpu::new_tensor(Shape([width * height]), scaled_edges);
-
-                // Step 8: Use GPU to convert f32 to u8
-                let edge_u8_tensor: Tensor<RustGpu, 1, u8> = edge_f32_tensor.convert();
-
-                // Step 9: Get final data and create RGB image
-                let edge_u8_data = edge_u8_tensor.to_vec();
-                let mut rgb_data = Vec::with_capacity(width * height * 3);
-
-                for &intensity in &edge_u8_data {
-                    rgb_data.push(intensity); // R
-                    rgb_data.push(intensity); // G
-                    rgb_data.push(intensity); // B
-                }
-
-                // Step 10: Create edge detected image
-                self.edge_img = ImageBuffer::from_raw(width as u32, height as u32, rgb_data);
             }
             Err(e) => {
-                eprintln!("Edge detection failed: {:?}", e);
-                self.edge_img = None;
+                eprintln!("GPU Conv2D failed: {:?}", e);
+                self.fallback_cpu_processing(width, height);
             }
         }
 
         self.processing = false;
+    }
+
+    fn fallback_cpu_processing(&mut self, width: usize, height: usize) {
+        eprintln!("Falling back to simple CPU edge detection...");
+        self.processing_method = Some("CPU Fallback".to_string());
+
+        let mut edge_pixels: Vec<u8> = Vec::with_capacity(width * height * 3);
+
+        for y in 0..height {
+            for x in 0..width {
+                let current = self.original_img.get_pixel(x as u32, y as u32);
+                let gray = (0.299 * current[0] as f32
+                    + 0.587 * current[1] as f32
+                    + 0.114 * current[2] as f32) as u8;
+
+                let mut edge_strength = 0u8;
+
+                // Simple edge detection using pixel differences
+                if x > 0 {
+                    let left = self.original_img.get_pixel((x - 1) as u32, y as u32);
+                    let left_gray = (0.299 * left[0] as f32
+                        + 0.587 * left[1] as f32
+                        + 0.114 * left[2] as f32) as u8;
+                    edge_strength = edge_strength.saturating_add(gray.abs_diff(left_gray));
+                }
+
+                if y > 0 {
+                    let top = self.original_img.get_pixel(x as u32, (y - 1) as u32);
+                    let top_gray = (0.299 * top[0] as f32
+                        + 0.587 * top[1] as f32
+                        + 0.114 * top[2] as f32) as u8;
+                    edge_strength = edge_strength.saturating_add(gray.abs_diff(top_gray));
+                }
+
+                let intensity = (edge_strength as f32 * 2.0).min(255.0) as u8;
+                edge_pixels.push(intensity); // R
+                edge_pixels.push(intensity); // G
+                edge_pixels.push(intensity); // B
+            }
+        }
+
+        self.edge_img = ImageBuffer::from_raw(width as u32, height as u32, edge_pixels);
     }
 }
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &ef::Context, _frame: &mut eframe::Frame) {
         ef::CentralPanel::default().show(ctx, |ui| {
-            ui.heading("GPU-Enhanced Edge Detection");
+            ui.heading("🚀 Pure GPU Edge Detection");
 
             ui.horizontal(|ui| {
-                if ui.button("Apply GPU-Enhanced Edge Detection").clicked() && !self.processing {
+                if ui.button("🔥 Apply GPU Edge Detection").clicked() && !self.processing {
                     self.apply_gpu_edge_detection();
                 }
 
@@ -177,7 +208,7 @@ impl eframe::App for App {
 
                 if let Some(ref method) = self.processing_method {
                     if !self.processing && self.edge_img.is_some() {
-                        ui.label(format!("✓ Completed using {}", method));
+                        ui.label(format!("✅ Completed using {}", method));
                     }
                 }
             });
@@ -187,7 +218,7 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 // Original image
                 ui.vertical(|ui| {
-                    ui.heading("Original Image");
+                    ui.heading("📸 Original Image");
                     let original_bytes = self.original_img.as_bytes();
                     let original_size = [
                         self.original_img.width() as usize,
@@ -197,9 +228,10 @@ impl eframe::App for App {
                     let original_image = ColorImage::from_rgb(original_size, original_bytes);
                     let original_texture =
                         ctx.load_texture("original", original_image, TextureOptions::default());
+
                     ui.add(
                         egui::Image::new(&original_texture)
-                            .corner_radius(5)
+                            .corner_radius(8.0)
                             .max_height(400.0)
                             .max_width(400.0),
                     );
@@ -208,46 +240,76 @@ impl eframe::App for App {
                 // Edge detected image
                 if let Some(ref edge_img) = self.edge_img {
                     ui.vertical(|ui| {
-                        ui.heading("GPU-Enhanced Edge Detection Result");
+                        ui.heading("⚡ GPU Edge Detection Result");
                         let edge_bytes = edge_img.as_bytes();
                         let edge_size = [edge_img.width() as usize, edge_img.height() as usize];
 
-                        // Verify the data length matches expected RGB format
                         let expected_len = edge_size[0] * edge_size[1] * 3;
                         if edge_bytes.len() == expected_len {
                             let edge_image = ColorImage::from_rgb(edge_size, edge_bytes);
                             let edge_texture =
                                 ctx.load_texture("edges", edge_image, TextureOptions::default());
+
                             ui.add(
                                 egui::Image::new(&edge_texture)
-                                    .corner_radius(5)
+                                    .corner_radius(8.0)
                                     .max_height(400.0)
                                     .max_width(400.0),
                             );
                         } else {
-                            ui.label(format!(
-                                "Error: Image data size mismatch. Expected {}, got {}",
-                                expected_len,
-                                edge_bytes.len()
-                            ));
+                            ui.colored_label(
+                                egui::Color32::RED,
+                                format!(
+                                    "⚠️ Image data error: Expected {} bytes, got {}",
+                                    expected_len,
+                                    edge_bytes.len()
+                                ),
+                            );
                         }
                     });
                 } else {
                     ui.vertical(|ui| {
-                        ui.heading("GPU-Enhanced Edge Detection Result");
-                        ui.label("Click 'Apply GPU-Enhanced Edge Detection' to process the image");
+                        ui.heading("⚡ GPU Edge Detection Result");
+                        ui.label("👆 Click 'Apply GPU Edge Detection' to see the magic!");
                     });
                 }
             });
 
+            ui.separator();
+
+            ui.label("🎯 Pure GPU Pipeline Architecture:");
+            ui.label("1. 📤 Load RGB image data to GPU memory");
+            ui.label("2. 🔄 GPU RGB → Grayscale conversion (compute shader)");
+            ui.label("3. 🎯 GPU Sobel edge detection with Conv2D + padding");
+            ui.label("4. ⚖️ GPU Batch normalization for stable results");
+            ui.label("5. 🎨 GPU Grayscale → RGB conversion (compute shader)");
+            ui.label("6. 📥 Transfer final results back for display");
+
+            ui.separator();
+            ui.colored_label(
+                egui::Color32::from_rgb(0, 150, 255),
+                "🚀 All tensor operations execute on GPU compute shaders for maximum performance!",
+            );
+
             if let Some(ref method) = self.processing_method {
-                if self.edge_img.is_some() {
-                    ui.label(format!(
-                        "✓ Pipeline completed successfully using: {}",
-                        method
-                    ));
-                } else if !self.processing {
-                    ui.label("❌ Pipeline failed. Check console for error details.");
+                if self.edge_img.is_some() && !self.processing {
+                    match method.as_str() {
+                        "Pure GPU Pipeline" => {
+                            ui.colored_label(
+                                egui::Color32::GREEN,
+                                "🔥 GPU pipeline executed successfully!",
+                            );
+                        }
+                        "CPU Fallback" => {
+                            ui.colored_label(
+                                egui::Color32::YELLOW,
+                                "⚠️ GPU pipeline failed, used CPU fallback",
+                            );
+                        }
+                        _ => {
+                            ui.label(format!("Processing completed with: {}", method));
+                        }
+                    }
                 }
             }
         });
