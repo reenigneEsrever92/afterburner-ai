@@ -5,6 +5,7 @@ edition.workspace = true
 
 [dependencies]
 afterburner-core = { path = "../afterburner-core" }
+afterburner-ops = { path = "../afterburner-ops" }
 afterburner-rustgpu-shared = { path = "../afterburner-rustgpu-shared" }
 wgpu = { workspace = true, features = ["spirv", "vulkan-portability"] }
 smol = { workspace = true }

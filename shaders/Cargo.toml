@@ -8,6 +8,7 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-spirv-builder = "0.9"
+spirv-builder = { git = "https://github.com/Rust-GPU/rust-gpu.git", branch = "main" }
+spirv-std = { git = "https://github.com/Rust-GPU/rust-gpu.git", branch = "main" }
 tracing = "0.1"
 tracing-test = "0.2"

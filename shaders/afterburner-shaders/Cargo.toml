@@ -7,6 +7,7 @@ edition.workspace = true
 crate-type = ["dylib"]
 
 [dependencies]
+spirv-std = { workspace = true }
 afterburner-rustgpu-shared = { path = "../../afterburner/afterburner-rustgpu-shared" }
 
 [dev-dependencies]
