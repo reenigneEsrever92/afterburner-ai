@@ -22,7 +22,6 @@ name = "afterburner-shaders"
 version = "0.1.0"
 dependencies = [
  "afterburner-rustgpu-shared",
- "spirv-std",
  "tracing",
  "tracing-test",
 ]

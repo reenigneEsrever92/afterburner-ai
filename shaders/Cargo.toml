@@ -8,7 +8,6 @@ version = "0.1.0"
 edition = "2021"
 
 [workspace.dependencies]
-spirv-std = "0.9"
 spirv-builder = "0.9"
 tracing = "0.1"
 tracing-test = "0.2"
