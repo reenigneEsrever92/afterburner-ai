@@ -15,7 +15,7 @@ impl Default for Conv2DParams {
     }
 }
 
-pub trait Conv2DImpl<B: Backend, T: Clone> {
+pub trait Conv2DBackend<B: Backend, T: Clone> {
     fn conv_2d(
         tensor: &Tensor<B, 4, T>,
         weights: &Tensor<B, 4, T>,
@@ -31,7 +31,7 @@ pub trait Conv2D<B: Backend, T: Clone> {
     ) -> AbResult<Tensor<B, 4, T>>;
 }
 
-impl<B: Backend + Conv2DImpl<B, T>, T: Clone> Conv2D<B, T> for Tensor<B, 4, T> {
+impl<B: Backend + Conv2DBackend<B, T>, T: Clone> Conv2D<B, T> for Tensor<B, 4, T> {
     fn conv_2d(
         &self,
         weights: &Tensor<B, 4, T>,

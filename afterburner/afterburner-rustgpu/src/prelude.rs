@@ -1,3 +1,4 @@
+pub use crate::batch_norm::*;
 pub use crate::conv2d::*;
 pub use crate::convert::*;
 pub use crate::*;

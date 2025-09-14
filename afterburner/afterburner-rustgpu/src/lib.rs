@@ -6,6 +6,7 @@ use wgpu::{
     Buffer, BufferDescriptor, BufferUsages, Features, Limits, PipelineCompilationOptions,
 };
 
+pub mod batch_norm;
 pub mod conv2d;
 pub mod convert;
 pub mod prelude;
@@ -164,7 +165,7 @@ impl RustGpuBackend {
 
             cpass.set_bind_group(0, &bind_group, &[]);
             cpass.set_pipeline(&compute_pipeline);
-            cpass.dispatch_workgroups(64, 1, 1);
+            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 4);
         }
 
         self.queue.submit(Some(encoder.finish()));
@@ -255,7 +256,7 @@ impl RustGpuBackend {
             cpass.set_bind_group(0, &bind_group, &[]);
             cpass.set_pipeline(&compute_pipeline);
             cpass.set_push_constants(0, cast_struct(&params));
-            cpass.dispatch_workgroups(64, 1, 1);
+            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 4);
         }
 
         self.queue.submit(Some(encoder.finish()));
@@ -362,10 +363,166 @@ impl RustGpuBackend {
             cpass.set_bind_group(0, &bind_group, &[]);
             cpass.set_pipeline(&compute_pipeline);
             cpass.set_push_constants(0, cast_struct(&params));
-            cpass.dispatch_workgroups(64, 1, 1);
+            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 4);
         }
 
         self.queue.submit(Some(encoder.finish()));
+    }
+
+    pub fn run_shader_3<T>(
+        &mut self,
+        entry_point: &str,
+        buffer1_id: usize,
+        buffer2_id: usize,
+        buffer3_id: usize,
+        output_buffer_id: usize,
+        params: T,
+    ) {
+        let buffer_1 = self.buffers.get(&buffer1_id).unwrap();
+        let buffer_2 = self.buffers.get(&buffer2_id).unwrap();
+        let buffer_3 = self.buffers.get(&buffer3_id).unwrap();
+        let output_buffer = self.buffers.get(&output_buffer_id).unwrap();
+
+        let bind_group_layout =
+            self.device
+                .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+                    label: None,
+                    entries: &[
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 0,
+                            count: None,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            },
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 1,
+                            count: None,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            },
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 2,
+                            count: None,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                            },
+                        },
+                        wgpu::BindGroupLayoutEntry {
+                            binding: 3,
+                            count: None,
+                            visibility: wgpu::ShaderStages::COMPUTE,
+                            ty: wgpu::BindingType::Buffer {
+                                has_dynamic_offset: false,
+                                min_binding_size: None,
+                                ty: wgpu::BufferBindingType::Storage { read_only: false },
+                            },
+                        },
+                    ],
+                });
+
+        let bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: None,
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: buffer_1.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: buffer_2.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: buffer_3.as_entire_binding(),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: output_buffer.as_entire_binding(),
+                },
+            ],
+        });
+
+        let pipeline_layout = self
+            .device
+            .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+                label: None,
+                bind_group_layouts: &[&bind_group_layout],
+                push_constant_ranges: &[wgpu::PushConstantRange {
+                    stages: wgpu::ShaderStages::COMPUTE,
+                    range: 0..std::mem::size_of::<T>() as u32,
+                }],
+            });
+
+        let compute_pipeline =
+            self.device
+                .create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                    label: Some("Compute Pipeline"),
+                    layout: Some(&pipeline_layout),
+                    module: &self.shader,
+                    entry_point: Some(entry_point),
+                    compilation_options: PipelineCompilationOptions::default(),
+                    cache: None,
+                });
+
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor { label: None });
+
+        {
+            let mut cpass = encoder.begin_compute_pass(&Default::default());
+
+            cpass.set_bind_group(0, &bind_group, &[]);
+            cpass.set_pipeline(&compute_pipeline);
+            cpass.set_push_constants(0, cast_struct(&params));
+
+            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 4);
+        }
+
+        self.queue.submit(Some(encoder.finish()));
+    }
+}
+
+impl RustGpuBackend {
+    fn safe_dispatch_workgroups(
+        &self,
+        cpass: &mut wgpu::ComputePass,
+        output_buffer_id: usize,
+        element_size: usize,
+    ) {
+        let data_size = self
+            .buffers
+            .get(&output_buffer_id)
+            .map(|b| b.size())
+            .unwrap_or(0) as usize;
+        let elements = if data_size > 0 {
+            data_size / element_size
+        } else {
+            1
+        };
+        let workgroups = (elements + 63) / 64; // 64 threads per workgroup, round up
+
+        // GPU limit is 65535 workgroups per dimension, use 2D dispatch if needed
+        let max_workgroups = 65535u32;
+        let (x_workgroups, y_workgroups) = if workgroups <= max_workgroups as usize {
+            (workgroups as u32, 1)
+        } else {
+            let x = max_workgroups;
+            let y = ((workgroups + max_workgroups as usize - 1) / max_workgroups as usize) as u32;
+            (x, y)
+        };
+        cpass.dispatch_workgroups(x_workgroups, y_workgroups, 1);
     }
 }
 
@@ -378,8 +535,9 @@ fn cast_slice<T, R: Sized>(data: &[T]) -> &[R] {
 
 #[inline]
 fn cast_struct<T>(data: &T) -> &[u8] {
-    let ptr = (data as *const T) as *const u8;
-    unsafe { std::slice::from_raw_parts(ptr, std::mem::size_of::<T>()) }
+    let ptr = data as *const T as *const u8;
+    let size = std::mem::size_of::<T>();
+    unsafe { std::slice::from_raw_parts(ptr, size) }
 }
 
 pub struct RustGpuBuilder;

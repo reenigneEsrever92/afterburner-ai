@@ -2,7 +2,7 @@ use tracing::debug;
 
 use crate::prelude::*;
 
-impl Conv2DImpl<Cpu, f32> for Cpu {
+impl Conv2DBackend<Cpu, f32> for Cpu {
     fn conv_2d(
         tensor: &Tensor<Cpu, 4, f32>,
         weights: &Tensor<Cpu, 4, f32>,

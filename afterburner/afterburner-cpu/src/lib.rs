@@ -1,9 +1,10 @@
-use std::{collections::HashMap, sync::Mutex};
+use std::{collections::HashMap, ops::Deref, sync::Mutex};
 
 use lazy_static::lazy_static;
 
 use afterburner_core::prelude::*;
 
+pub mod batch_norm;
 pub mod conv2d;
 pub mod prelude;
 

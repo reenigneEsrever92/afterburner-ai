@@ -1,6 +1,7 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 #![feature(generic_const_exprs)]
 
+use afterburner_rustgpu_shared::batch_norm::RustGpuBatchNormParams;
 use afterburner_rustgpu_shared::conv2d::RustGpuConv2DParams;
 use spirv_std::{glam::UVec3, spirv};
 
@@ -10,7 +11,7 @@ pub fn test(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] _input: &[u8],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
 ) {
-    let idx = id.x as usize;
+    let idx = (id.y * 65535 + id.x) as usize;
     if idx < output.len() {
         output[idx] = 1.0;
     }
@@ -22,9 +23,74 @@ pub fn convert_u8_f32(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[u8],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
 ) {
-    let idx = id.x as usize;
+    let idx = (id.y * 65535 + id.x) as usize;
     if idx < input.len() && idx < output.len() {
         output[idx] = input[idx] as f32;
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn convert_f32_u8(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [u8],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < input.len() && idx < output.len() {
+        // Clamp to 0-255 range and convert
+        let clamped = if input[idx] < 0.0 {
+            0.0
+        } else if input[idx] > 255.0 {
+            255.0
+        } else {
+            input[idx]
+        };
+        output[idx] = clamped as u8;
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn convert_grayscale_to_rgb(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [u8],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < input.len() {
+        let rgb_idx = idx * 3;
+        if rgb_idx + 2 < output.len() {
+            // Clamp and convert to u8
+            let clamped = if input[idx] < 0.0 {
+                0.0
+            } else if input[idx] > 1.0 {
+                1.0
+            } else {
+                input[idx]
+            };
+            let value = (clamped * 255.0) as u8;
+            output[rgb_idx] = value; // R
+            output[rgb_idx + 1] = value; // G
+            output[rgb_idx + 2] = value; // B
+        }
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn convert_rgb_to_grayscale(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[u8],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    let rgb_idx = idx * 3;
+    if rgb_idx + 2 < input.len() && idx < output.len() {
+        let r = input[rgb_idx] as f32;
+        let g = input[rgb_idx + 1] as f32;
+        let b = input[rgb_idx + 2] as f32;
+
+        // Convert RGB to grayscale using luminance formula
+        let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+        output[idx] = gray / 255.0; // Normalize to 0-1 range
     }
 }
 
@@ -36,8 +102,25 @@ pub fn conv2d(
     #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] weights: &[f32],
     #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] output: &mut [f32],
 ) {
-    let idx = id.x as usize;
+    let idx = (id.y * 65535 + id.x) as usize;
     if idx < output.len() {
         afterburner_rustgpu_shared::conv2d::conv2d(idx, &params, input, weights, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn batch_norm(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuBatchNormParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] gamma: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] beta: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 3)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::batch_norm::batch_norm(
+            idx, &params, input, gamma, beta, output,
+        );
     }
 }

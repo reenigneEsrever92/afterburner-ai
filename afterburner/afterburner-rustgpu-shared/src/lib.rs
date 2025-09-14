@@ -1,6 +1,7 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 #![feature(generic_const_exprs)]
 
+pub mod batch_norm;
 pub mod conv2d;
 
 #[repr(C)]
