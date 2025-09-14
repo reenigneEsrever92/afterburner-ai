@@ -26,7 +26,12 @@ impl BatchNormImpl<RustGpu, f32> for RustGpu {
                 beta.id,
                 output.id,
                 RustGpuBatchNormParams {
-                    dimensions: RustGpuShape(input_shape.0),
+                    dimensions: RustGpuShape([
+                        input_shape.0[0] as u32,
+                        input_shape.0[1] as u32,
+                        input_shape.0[2] as u32,
+                        input_shape.0[3] as u32,
+                    ]),
                     epsilon: params.epsilon,
                 },
             );

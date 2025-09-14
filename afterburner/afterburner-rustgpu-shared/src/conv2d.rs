@@ -17,22 +17,33 @@ pub fn conv2d(
     output: &mut [f32],
 ) {
     // Input dimensions: [batch, in_channels, height, width]
-    let in_batch = params.dimensions.0[0];
-    let in_channels = params.dimensions.0[1];
-    let in_height = params.dimensions.0[2];
-    let in_width = params.dimensions.0[3];
+    let in_batch = params.dimensions.0[0] as usize;
+    let in_channels = params.dimensions.0[1] as usize;
+    let in_height = params.dimensions.0[2] as usize;
+    let in_width = params.dimensions.0[3] as usize;
 
     // Weight dimensions: [out_channels, in_channels, kernel_h, kernel_w]
-    let out_channels = params.conv.0[0];
-    let weight_in_channels = params.conv.0[1];
-    let kernel_h = params.conv.0[2];
-    let kernel_w = params.conv.0[3];
+    let out_channels = params.conv.0[0] as usize;
+    let weight_in_channels = params.conv.0[1] as usize;
+    let kernel_h = params.conv.0[2] as usize;
+    let kernel_w = params.conv.0[3] as usize;
 
     // Calculate output dimensions with padding
-    let pad_h = params.padding.0[0];
-    let pad_w = params.padding.0[1];
-    let out_height = (in_height + 2 * pad_h - kernel_h) / params.stride.0[0] + 1;
-    let out_width = (in_width + 2 * pad_w - kernel_w) / params.stride.0[1] + 1;
+    let pad_h = params.padding.0[0] as usize;
+    let pad_w = params.padding.0[1] as usize;
+
+    // Calculate output dimensions with padding
+    let stride_h = params.stride.0[0] as usize;
+    let stride_w = params.stride.0[1] as usize;
+
+    // Safety check: ensure stride values are not zero
+    if stride_h == 0 || stride_w == 0 {
+        return;
+    }
+
+    // Calculate output dimensions
+    let out_height = (in_height + 2 * pad_h - kernel_h) / stride_h + 1;
+    let out_width = (in_width + 2 * pad_w - kernel_w) / stride_w + 1;
 
     // Calculate strides for indexing
     let in_channel_stride = in_height * in_width;
@@ -65,8 +76,8 @@ pub fn conv2d(
     for in_ch in 0..weight_in_channels {
         for ky in 0..kernel_h {
             for kx in 0..kernel_w {
-                let in_y = out_y * params.stride.0[0] + ky;
-                let in_x = out_x * params.stride.0[1] + kx;
+                let in_y = out_y * stride_h + ky;
+                let in_x = out_x * stride_w + kx;
 
                 // Apply padding offset with bounds checking
                 let in_y_with_pad = in_y as isize - pad_h as isize;
@@ -113,10 +124,10 @@ mod test {
         let mut output = [0.0f32];
 
         let params = RustGpuConv2DParams {
-            dimensions: RustGpuShape([1, 1, 1, 1]), // [batch, in_channels, height, width]
-            conv: RustGpuShape([1, 1, 1, 1]), // [out_channels, in_channels, kernel_h, kernel_w]
-            stride: RustGpuShape([1, 1]),     // [stride_h, stride_w]
-            padding: RustGpuShape([0, 0]),    // [padding_h, padding_w]
+            dimensions: RustGpuShape([1u32, 1, 1, 1]), // [batch, in_channels, height, width]
+            conv: RustGpuShape([1u32, 1, 1, 1]), // [out_channels, in_channels, kernel_h, kernel_w]
+            stride: RustGpuShape([1u32, 1]),     // [stride_h, stride_w]
+            padding: RustGpuShape([0u32, 0]),    // [padding_h, padding_w]
         };
 
         let src_range = 0..1;
@@ -145,10 +156,10 @@ mod test {
         let weights = flatten([[[[2.0f32]], [[3.0]]], [[[4.0]], [[5.0]]]]);
 
         let params = RustGpuConv2DParams {
-            dimensions: RustGpuShape([2, 2, 3, 3]), // [batch, in_channels, height, width]
-            conv: RustGpuShape([2, 2, 1, 1]), // [out_channels, in_channels, kernel_h, kernel_w]
-            stride: RustGpuShape([1, 1]),
-            padding: RustGpuShape([0, 0]), // [padding_h, padding_w]
+            dimensions: RustGpuShape([2u32, 2, 3, 3]), // [batch, in_channels, height, width]
+            conv: RustGpuShape([2u32, 2, 1, 1]), // [out_channels, in_channels, kernel_h, kernel_w]
+            stride: RustGpuShape([1u32, 1]),
+            padding: RustGpuShape([0u32, 0]), // [padding_h, padding_w]
         };
 
         let output_size = 2 * 2 * 3 * 3; // batch * out_channels * out_height * out_width
@@ -182,10 +193,10 @@ mod test {
         let weights = flatten([[[[1.0f32, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]]]);
 
         let params = RustGpuConv2DParams {
-            dimensions: RustGpuShape([1, 1, 2, 2]), // [batch, in_channels, height, width]
-            conv: RustGpuShape([1, 1, 3, 3]), // [out_channels, in_channels, kernel_h, kernel_w]
-            stride: RustGpuShape([1, 1]),     // [stride_h, stride_w]
-            padding: RustGpuShape([1, 1]),    // [padding_h, padding_w]
+            dimensions: RustGpuShape([1u32, 1, 2, 2]), // [batch, in_channels, height, width]
+            conv: RustGpuShape([1u32, 1, 3, 3]), // [out_channels, in_channels, kernel_h, kernel_w]
+            stride: RustGpuShape([1u32, 1]),     // [stride_h, stride_w]
+            padding: RustGpuShape([1u32, 1]),    // [padding_h, padding_w]
         };
 
         let output_size = 1 * 1 * 2 * 2; // batch * out_channels * out_height * out_width
@@ -214,10 +225,10 @@ mod test {
         let weights = flatten([[[[1.0f32, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]]]);
 
         let params = RustGpuConv2DParams {
-            dimensions: RustGpuShape([1, 1, 3, 3]), // [batch, in_channels, height, width]
-            conv: RustGpuShape([1, 1, 3, 3]), // [out_channels, in_channels, kernel_h, kernel_w]
-            stride: RustGpuShape([1, 1]),     // [stride_h, stride_w]
-            padding: RustGpuShape([0, 0]),    // [padding_h, padding_w]
+            dimensions: RustGpuShape([1u32, 1, 3, 3]), // [batch, in_channels, height, width]
+            conv: RustGpuShape([1u32, 1, 3, 3]), // [out_channels, in_channels, kernel_h, kernel_w]
+            stride: RustGpuShape([1u32, 1]),     // [stride_h, stride_w]
+            padding: RustGpuShape([0u32, 0]),    // [padding_h, padding_w]
         };
 
         let output_size = 1 * 1 * 1 * 1; // batch * out_channels * out_height * out_width
@@ -230,39 +241,6 @@ mod test {
             .for_each(|x| conv2d(x as usize, &params, &input, &weights, &mut output));
 
         println!("Shared Sobel result: {:?}", output);
-        assert_eq!(output, [-3.0f32]);
-    }
-
-    #[test]
-    fn test_conv2d_sobel_debug() {
-        // Debug the exact same case as the failing GPU test
-        let input = flatten([[[[0.0f32, 1.0, 1.0], [0.0, 1.0, 1.0], [0.0, 1.0, 1.0]]]]);
-        let weights = flatten([[[[1.0f32, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]]]);
-
-        let params = RustGpuConv2DParams {
-            dimensions: RustGpuShape([1, 1, 3, 3]), // [batch, in_channels, height, width]
-            conv: RustGpuShape([1, 1, 3, 3]), // [out_channels, in_channels, kernel_h, kernel_w]
-            stride: RustGpuShape([1, 1]),     // [stride_h, stride_w]
-            padding: RustGpuShape([0, 0]),    // [padding_h, padding_w]
-        };
-
-        println!("Input data: {:?}", input);
-        println!("Weights data: {:?}", weights);
-        println!(
-            "Params: dimensions={:?}, conv={:?}, stride={:?}, padding={:?}",
-            params.dimensions.0, params.conv.0, params.stride.0, params.padding.0
-        );
-
-        // Test with id=0 (the only output element)
-        let output_size = 1 * 1 * 1 * 1; // batch * out_channels * out_height * out_width
-        let mut output = vec![999.0f32; output_size]; // Use 999.0 to see if it gets overwritten
-
-        println!("Initial output: {:?}", output);
-
-        // Call the convolution function directly
-        conv2d(0, &params, &input, &weights, &mut output);
-
-        println!("Final output: {:?}", output);
         assert_eq!(output, [-3.0f32]);
     }
 

@@ -1,4 +1,5 @@
 use std::{
+    fmt::Debug,
     marker::PhantomData,
     sync::atomic::{AtomicUsize, Ordering::SeqCst},
 };
@@ -11,12 +12,21 @@ use crate::{
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Tensor<B: Backend, const D: usize, T: Clone> {
     pub id: usize,
     pub shape: Shape<D>,
     backend: PhantomData<B>,
     data: PhantomData<T>,
+}
+
+impl<B: Backend, const D: usize, T: Clone> Debug for Tensor<B, D, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Tensor")
+            .field("id", &self.id)
+            .field("shape", &self.shape)
+            .finish()
+    }
 }
 
 impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
@@ -142,6 +152,14 @@ impl<B: Backend, const D: usize, const D2: usize> From<[[u8; D]; D2]> for Tensor
         let length = D * D2;
         let data = unsafe { Vec::from(std::slice::from_raw_parts(ptr, length)) };
         B::new_tensor(Shape([D2, D]), data)
+    }
+}
+
+impl<B: Backend, const D: usize> From<[f32; D]> for Tensor<B, 1, f32> {
+    fn from(value: [f32; D]) -> Self {
+        let ptr = value.as_ptr() as *mut f32;
+        let data = unsafe { Vec::from(std::slice::from_raw_parts(ptr, D)) };
+        B::new_tensor(Shape([D]), data)
     }
 }
 

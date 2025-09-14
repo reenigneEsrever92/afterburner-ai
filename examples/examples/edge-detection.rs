@@ -120,12 +120,22 @@ impl App {
             )
             .unwrap();
 
-        let max = edges
+        let edges = edges.reshape([width, height].into());
+
+        let normalized_edges = edges
+            .batch_norm(
+                &[1.0f32, 1.0].into(),
+                &[1.0f32, 1.0].into(),
+                BatchNormParams::default(),
+            )
+            .unwrap();
+
+        let min = normalized_edges
             .to_vec()
             .into_iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
-        let min = edges
+        let max = normalized_edges
             .to_vec()
             .into_iter()
             .min_by(|a, b| a.partial_cmp(b).unwrap())

@@ -37,10 +37,10 @@ pub fn batch_norm(
     output: &mut [f32],
 ) {
     // Input dimensions: [batch, channels, height, width]
-    let batch_size = params.dimensions.0[0];
-    let channels = params.dimensions.0[1];
-    let height = params.dimensions.0[2];
-    let width = params.dimensions.0[3];
+    let batch_size = params.dimensions.0[0] as usize;
+    let channels = params.dimensions.0[1] as usize;
+    let height = params.dimensions.0[2] as usize;
+    let width = params.dimensions.0[3] as usize;
 
     let channel_size = height * width;
     let batch_stride = channels * channel_size;

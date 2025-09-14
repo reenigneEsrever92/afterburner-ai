@@ -1,6 +1,7 @@
 use std::{collections::HashMap, ops::Deref, sync::Mutex};
 
 use afterburner_core::prelude::*;
+use tracing::debug;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferDescriptor, BufferUsages, Features, Limits, PipelineCompilationOptions,
@@ -513,7 +514,7 @@ impl RustGpuBackend {
         };
         let workgroups = (elements + 63) / 64; // 64 threads per workgroup, round up
 
-        println!(
+        debug!(
             "Dispatch info: buffer_id={}, data_size={}, element_size={}, elements={}, workgroups={}",
             output_buffer_id, data_size, element_size, elements, workgroups
         );
@@ -528,7 +529,7 @@ impl RustGpuBackend {
             (x, y)
         };
 
-        println!(
+        debug!(
             "Dispatching workgroups: x={}, y={}, z=1",
             x_workgroups, y_workgroups
         );

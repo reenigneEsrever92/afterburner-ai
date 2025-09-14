@@ -6,10 +6,10 @@ pub mod conv2d;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub struct RustGpuShape<const D: usize>(pub [usize; D]);
+pub struct RustGpuShape<const D: usize>(pub [u32; D]);
 
 impl<const D: usize> RustGpuShape<D> {
-    pub fn as_slice(&self) -> &[usize; D] {
+    pub fn as_slice(&self) -> &[u32; D] {
         &self.0
     }
 }

@@ -1,6 +1,7 @@
 use afterburner_core::prelude::*;
 use afterburner_ops::prelude::*;
 use afterburner_rustgpu_shared::{conv2d::RustGpuConv2DParams, RustGpuShape};
+use tracing::debug;
 
 use crate::{run_with_backend, RustGpu};
 
@@ -11,6 +12,8 @@ impl Conv2DBackend<RustGpu, f32> for RustGpu {
         params: Conv2DParams,
     ) -> Tensor<RustGpu, 4, f32> {
         run_with_backend(|backend| {
+            debug!(?tensor, ?weights, ?params, "conv_2d");
+
             let stride = params.stride;
             let padding = params.padding;
 
@@ -40,28 +43,24 @@ impl Conv2DBackend<RustGpu, f32> for RustGpu {
             let zero_data = vec![0.0f32; new_shape.size()];
             backend.create_buffer_init(output.id, zero_data).unwrap();
 
-            println!(
-                "Output buffer size: {} elements, {} bytes",
-                new_shape.size(),
-                output.size()
-            );
-            println!("Input buffer size: {} bytes", tensor.size());
-            println!("Weights buffer size: {} bytes", weights.size());
-
             let params = RustGpuConv2DParams {
-                dimensions: RustGpuShape(tensor.shape.0),
-                conv: RustGpuShape(weights.shape.0),
-                stride: RustGpuShape(stride.0),
-                padding: RustGpuShape(padding.0),
+                dimensions: RustGpuShape([
+                    tensor.shape.0[0] as u32,
+                    tensor.shape.0[1] as u32,
+                    tensor.shape.0[2] as u32,
+                    tensor.shape.0[3] as u32,
+                ]),
+                conv: RustGpuShape([
+                    weights.shape.0[0] as u32,
+                    weights.shape.0[1] as u32,
+                    weights.shape.0[2] as u32,
+                    weights.shape.0[3] as u32,
+                ]),
+                stride: RustGpuShape([stride.0[0] as u32, stride.0[1] as u32]),
+                padding: RustGpuShape([padding.0[0] as u32, padding.0[1] as u32]),
             };
 
-            println!(
-                "Conv2D params: dimensions={:?}, conv={:?}, stride={:?}, padding={:?}",
-                params.dimensions.0, params.conv.0, params.stride.0, params.padding.0
-            );
-
             backend.run_shader_2("conv2d", tensor.id, weights.id, output.id, params);
-
             output
         })
     }
@@ -119,7 +118,8 @@ mod test {
     }
 
     #[test]
-    fn test_conv() {
+    #[tracing_test::traced_test]
+    fn test_convo() {
         init();
         let tensor: Tensor<RustGpu, 4, f32> = Tensor::from([
             [
