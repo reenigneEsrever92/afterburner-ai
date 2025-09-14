@@ -2,6 +2,7 @@
 #![feature(generic_const_exprs)]
 
 use afterburner_rustgpu_shared::batch_norm::RustGpuBatchNormParams;
+use afterburner_rustgpu_shared::channel_normalize::RustGpuChannelNormalizeParams;
 use afterburner_rustgpu_shared::conv2d::RustGpuConv2DParams;
 use afterburner_rustgpu_shared::normalize::RustGpuNormalizeParams;
 use spirv_std::{glam::UVec3, spirv};
@@ -201,5 +202,20 @@ pub fn normalize_6d(
     let idx = (id.y * 65535 + id.x) as usize;
     if idx < output.len() {
         afterburner_rustgpu_shared::normalize::normalize(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn channel_normalize(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuChannelNormalizeParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::channel_normalize::channel_normalize(
+            idx, params, input, output,
+        );
     }
 }

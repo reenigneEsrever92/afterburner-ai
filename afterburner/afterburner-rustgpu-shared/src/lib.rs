@@ -2,6 +2,7 @@
 #![feature(generic_const_exprs)]
 
 pub mod batch_norm;
+pub mod channel_normalize;
 pub mod conv2d;
 pub mod normalize;
 

@@ -5,6 +5,7 @@ use lazy_static::lazy_static;
 use afterburner_core::prelude::*;
 
 pub mod batch_norm;
+pub mod channel_normalize;
 pub mod conv2d;
 pub mod prelude;
 

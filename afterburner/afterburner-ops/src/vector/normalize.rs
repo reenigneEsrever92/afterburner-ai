@@ -17,6 +17,31 @@ impl Default for NormalizeParams {
     }
 }
 
+impl From<f32> for NormalizeParams {
+    fn from(p: f32) -> Self {
+        Self {
+            p,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<(f32, i32)> for NormalizeParams {
+    fn from((p, dim): (f32, i32)) -> Self {
+        Self {
+            p,
+            dim,
+            ..Default::default()
+        }
+    }
+}
+
+impl From<(f32, i32, f32)> for NormalizeParams {
+    fn from((p, dim, eps): (f32, i32, f32)) -> Self {
+        Self { p, dim, eps }
+    }
+}
+
 pub trait NormalizeImpl<B: Backend, T: Clone, const D: usize> {
     fn normalize(input: &Tensor<B, D, T>, params: NormalizeParams) -> Tensor<B, D, T>;
 }

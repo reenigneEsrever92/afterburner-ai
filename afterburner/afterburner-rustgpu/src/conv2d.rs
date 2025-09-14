@@ -5,7 +5,7 @@ use tracing::debug;
 
 use crate::{run_with_backend, RustGpu};
 
-impl Conv2DBackend<RustGpu, f32> for RustGpu {
+impl Conv2DImpl<RustGpu, f32> for RustGpu {
     fn conv_2d(
         tensor: &Tensor<RustGpu, 4, f32>,
         weights: &Tensor<RustGpu, 4, f32>,

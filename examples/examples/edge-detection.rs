@@ -1,26 +1,37 @@
-//! Pure GPU-Accelerated Edge Detection Example (Without Conv2D)
+//! GPU-Accelerated Edge Detection with Channel Normalization
 //!
-//! This example demonstrates GPU-based edge detection using basic tensor operations
-//! instead of Conv2D, since the Conv2D implementation appears to have issues.
+//! This example demonstrates GPU-based edge detection using Sobel filters
+//! and channel normalization to ensure edge values are properly normalized
+//! between 0 and 1 for optimal visualization.
 //!
-//! This approach uses direct GPU memory operations to implement Sobel filtering
-//! manually, ensuring all computation stays on the GPU.
+//! ## Channel Normalization Usage
+//!
+//! This example showcases a key difference between the two normalization types:
+//! - **torch.nn.functional.normalize**: Creates unit vectors (magnitude = 1)
+//! - **torchvision.transforms.Normalize**: Maps values to specific range using mean/std
+//!
+//! For edge detection, we use **channel normalization** (torchvision style) to:
+//! 1. Calculate edge gradients which have arbitrary magnitude ranges
+//! 2. Map the gradient values from [min_gradient, max_gradient] to [0, 1]
+//! 3. Ensure optimal visualization contrast
+//!
+//! The normalization formula used: `(value - min) / (max - min) = normalized_value`
+//! Where min=0 and max=(max-min), giving us: `(value - min) / range`
 //!
 //! Features:
-//! - Pure GPU pipeline - all operations run on GPU
-//! - GPU-based RGB to grayscale conversion
-//! - Manual GPU-based Sobel edge detection using direct memory access
-//! - GPU-based normalization
+//! - GPU RGB to grayscale conversion
+//! - Sobel edge detection using Conv2D
+//! - **Channel normalization to normalize edge values to [0,1] range**
 //! - Real-time processing with progress indication
 //! - Side-by-side image comparison
 //!
-//! GPU Pipeline:
+//! Pipeline:
 //! 1. Load RGB image data to GPU
 //! 2. GPU RGB → Grayscale conversion
-//! 3. GPU manual Sobel edge detection (X & Y gradients)
-//! 4. GPU gradient magnitude calculation
-//! 5. GPU normalization and RGB conversion
-//! 6. Display results
+//! 3. Apply Sobel X and Y filters using Conv2D
+//! 4. Calculate gradient magnitude: sqrt(gx² + gy²)
+//! 5. **Use channel normalization to map values to [0,1] range**
+//! 6. Convert back to RGB for display
 
 use afterburner_rustgpu::prelude::*;
 use eframe::egui as ef;
@@ -71,104 +82,145 @@ impl App {
         self.processing = true;
         self.error_message = None;
 
+        match self.run_edge_detection() {
+            Ok(edge_img) => {
+                self.edge_img = Some(edge_img);
+                println!("✅ GPU edge detection completed successfully!");
+            }
+            Err(e) => {
+                self.error_message = Some(format!("Edge detection failed: {}", e));
+                println!("❌ Edge detection error: {}", e);
+            }
+        }
+
+        self.processing = false;
+    }
+
+    fn run_edge_detection(&mut self) -> Result<ImageBuffer<Rgb<u8>, Vec<u8>>, String> {
         let width = self.original_img.width() as usize;
         let height = self.original_img.height() as usize;
 
-        println!("🚀 Starting GPU-only edge detection pipeline (manual implementation)");
+        println!("🚀 Starting GPU edge detection with channel normalization");
         println!("📐 Image dimensions: {}x{}", width, height);
 
-        // Step 1: Create RGB tensor on GPU from image data
+        // Step 1: Create RGB tensor and convert to grayscale
         let rgb_data: Vec<u8> = self.original_img.as_raw().to_vec();
         println!("📤 Uploading {} bytes to GPU", rgb_data.len());
 
         let rgb_tensor: Tensor<RustGpu, 1, u8> =
             RustGpu::new_tensor(Shape([width * height * 3]), rgb_data);
 
-        // Step 2: GPU RGB to Grayscale conversion
         println!("🔄 GPU RGB → Grayscale conversion");
         let grayscale_tensor = RustGpu::rgb_to_grayscale(&rgb_tensor, width, height);
+        let grayscale_4d = grayscale_tensor.reshape([1, 1, height, width]).unwrap();
 
-        // Step 3: Manual GPU-based Sobel edge detection
-        println!("🎯 Applying manual GPU Sobel edge detection");
-
+        // Step 2: Create Sobel filters
+        println!("🎯 Creating Sobel filters");
         let sobel_x = RustGpu::new_tensor(
-            [3, 3].into(),
-            [1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0].into(),
-        )
-        .reshape([1, 1, 3, 3])
-        .unwrap();
+            Shape([1, 1, 3, 3]),
+            vec![1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0],
+        );
 
-        let grayscale_tensor = grayscale_tensor.reshape([1, 1, width, height]).unwrap();
-        let max = grayscale_tensor
-            .to_vec()
-            .into_iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
-        let min = grayscale_tensor
-            .to_vec()
-            .into_iter()
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
-        println!("Grayscale min: {}, max: {}", min, max);
+        let sobel_y = RustGpu::new_tensor(
+            Shape([1, 1, 3, 3]),
+            vec![1.0, 2.0, 1.0, 0.0, 0.0, 0.0, -1.0, -2.0, -1.0],
+        );
 
-        let edges = grayscale_tensor
+        // Step 3: Apply Sobel filters
+        println!("📐 Applying Sobel X filter");
+        let edges_x = grayscale_4d
             .conv_2d(
                 &sobel_x,
                 Conv2DParams {
-                    padding: [1, 1].into(),
+                    padding: Shape([1, 1]),
                     ..Default::default()
                 },
             )
-            .unwrap();
+            .map_err(|e| format!("Sobel X conv failed: {:?}", e))?;
 
-        let edges = edges.reshape([width, height]).unwrap();
+        println!("📐 Applying Sobel Y filter");
+        let edges_y = grayscale_4d
+            .conv_2d(
+                &sobel_y,
+                Conv2DParams {
+                    padding: Shape([1, 1]),
+                    ..Default::default()
+                },
+            )
+            .map_err(|e| format!("Sobel Y conv failed: {:?}", e))?;
 
-        let normalized_edges = edges.normalize(NormalizeParams::default()).unwrap();
+        // Step 4: Calculate gradient magnitude (sqrt(gx² + gy²))
+        println!("⚡ Calculating gradient magnitude");
 
-        let min = normalized_edges
-            .to_vec()
-            .into_iter()
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
-        let max = normalized_edges
-            .to_vec()
-            .into_iter()
-            .max_by(|a, b| a.partial_cmp(b).unwrap())
-            .unwrap();
+        // Flatten for element-wise operations
+        let gx_flat = edges_x.reshape([width * height]).unwrap();
+        let gy_flat = edges_y.reshape([width * height]).unwrap();
 
-        println!("Edges min: {}, max: {}", min, max);
+        let gx_data = gx_flat.to_vec();
+        let gy_data = gy_flat.to_vec();
 
-        // Use GPU grayscale to RGB conversion
-        // let rgb_edges = RustGpu::grayscale_to_rgb(&edges, width, height);
+        let magnitude_data: Vec<f32> = gx_data
+            .iter()
+            .zip(gy_data.iter())
+            .map(|(gx, gy)| (gx * gx + gy * gy).sqrt())
+            .collect();
 
-        // // Step 6: Create final edge image
-        // println!("🖼️ Creating final edge image");
-        // self.edge_img = ImageBuffer::from_raw(width as u32, height as u32, rgb_edges.to_vec());
+        let magnitude_tensor = RustGpu::new_tensor(Shape([1, 1, height, width]), magnitude_data);
 
-        // if self.edge_img.is_some() {
-        //     println!("✅ GPU edge detection pipeline completed successfully!");
-        //     let final_min = *self
-        //         .edge_img
-        //         .as_ref()
-        //         .unwrap()
-        //         .as_raw()
-        //         .iter()
-        //         .min()
-        //         .unwrap_or(&0);
-        //     let final_max = *self
-        //         .edge_img
-        //         .as_ref()
-        //         .unwrap()
-        //         .as_raw()
-        //         .iter()
-        //         .max()
-        //         .unwrap_or(&0);
-        //     println!("📊 Final image range: {} to {}", final_min, final_max);
-        // } else {
-        //     self.error_message = Some("Failed to create final image buffer".to_string());
-        // }
+        // Step 5: Use channel normalization to map values to [0,1] range
+        println!("⚖️ Applying channel normalization to map values to [0,1]");
+        println!(
+            "   This demonstrates torchvision-style normalization vs torch.functional normalize"
+        );
 
-        // self.processing = false;
+        // Calculate statistics for normalization
+        let mag_data = magnitude_tensor.to_vec();
+        let min_val = mag_data.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+        let max_val = mag_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+
+        println!(
+            "📊 Original magnitude range: {:.3} to {:.3}",
+            min_val, max_val
+        );
+
+        // Apply channel normalization: (value - min) / (max - min) maps to [0,1]
+        // This is the key difference from L2 normalization which would create unit vectors
+        let range = max_val - min_val;
+        let normalized_magnitude = if range > 1e-6 {
+            println!(
+                "   Using formula: (value - {:.3}) / {:.3} → [0,1]",
+                min_val, range
+            );
+            magnitude_tensor
+                .channel_normalize(ChannelNormalizeParams {
+                    mean: vec![min_val], // Subtract minimum to shift to 0
+                    std: vec![range],    // Divide by range to scale to [0,1]
+                })
+                .map_err(|e| format!("Channel normalization failed: {:?}", e))?
+        } else {
+            // Handle case where all values are the same
+            println!("   All gradient values are the same - no normalization needed");
+            magnitude_tensor
+        };
+
+        // Verify normalization
+        let norm_data = normalized_magnitude.to_vec();
+        let norm_min = norm_data.iter().fold(f32::INFINITY, |a, &b| a.min(b));
+        let norm_max = norm_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        println!("📊 Normalized range: {:.3} to {:.3}", norm_min, norm_max);
+
+        // Step 6: Convert to grayscale tensor for RGB conversion
+        let normalized_1d = normalized_magnitude.reshape([width * height]).unwrap();
+
+        println!("🎨 Converting to RGB");
+        let rgb_edges = RustGpu::grayscale_to_rgb(&normalized_1d, width, height);
+
+        // Step 7: Create final image
+        println!("🖼️ Creating final edge image");
+        let final_data = rgb_edges.to_vec();
+
+        ImageBuffer::from_raw(width as u32, height as u32, final_data)
+            .ok_or_else(|| "Failed to create image buffer from edge data".to_string())
     }
 }
 
@@ -264,19 +316,25 @@ impl eframe::App for App {
 
             ui.separator();
 
-            ui.label("🎯 Pure GPU Pipeline Architecture:");
+            ui.label("🎯 GPU Pipeline with Channel Normalization:");
             ui.label("1. 📤 Upload RGB image data to GPU memory");
             ui.label("2. 🔄 GPU RGB → Grayscale conversion");
-            ui.label("3. 🎯 Manual GPU Sobel filtering (avoiding Conv2D issues)");
-            ui.label("4. ⚡ GPU gradient magnitude calculation");
-            ui.label("5. ⚖️ GPU normalization for optimal visibility");
+            ui.label("3. 🎯 Apply Sobel X and Y filters using Conv2D");
+            ui.label("4. ⚡ Calculate gradient magnitude: sqrt(gx² + gy²)");
+            ui.label("5. ⚖️ Channel normalization: (value - min) / (max - min) → [0,1]");
+            ui.label("   📝 This uses torchvision.transforms.Normalize style");
+            ui.label("   📝 NOT torch.nn.functional.normalize (L2 unit vectors)");
             ui.label("6. 🎨 GPU grayscale → RGB conversion");
-            ui.label("7. 📥 Transfer final results for display");
+            ui.label("7. 📥 Display normalized edge results");
 
             ui.separator();
             ui.colored_label(
                 egui::Color32::from_rgb(0, 150, 255),
-                "🚀 Maximum GPU utilization - only final image creation happens on CPU!",
+                "✨ Channel normalization maps arbitrary edge gradients to [0,1] for optimal visualization!",
+            );
+            ui.colored_label(
+                egui::Color32::from_rgb(255, 165, 0),
+                "🔍 Key: Uses (value-mean)/std vs L2 normalize which creates unit vectors",
             );
         });
     }

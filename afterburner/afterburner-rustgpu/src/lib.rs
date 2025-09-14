@@ -8,6 +8,7 @@ use wgpu::{
 };
 
 pub mod batch_norm;
+pub mod channel_normalize;
 pub mod conv2d;
 pub mod convert;
 pub mod normalize;
