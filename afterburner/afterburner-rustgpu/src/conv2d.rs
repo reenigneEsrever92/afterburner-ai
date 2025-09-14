@@ -36,20 +36,31 @@ impl Conv2DBackend<RustGpu, f32> for RustGpu {
 
             let output = Tensor::create(new_shape);
 
-            backend.create_buffer(output.id, output.size()).unwrap();
+            // Initialize output buffer with zeros to ensure correct computation
+            let zero_data = vec![0.0f32; new_shape.size()];
+            backend.create_buffer_init(output.id, zero_data).unwrap();
 
-            backend.run_shader_2(
-                "conv2d",
-                tensor.id,
-                weights.id,
-                output.id,
-                RustGpuConv2DParams {
-                    dimensions: RustGpuShape(tensor.shape.0),
-                    conv: RustGpuShape(weights.shape.0),
-                    stride: RustGpuShape(stride.0),
-                    padding: RustGpuShape(padding.0),
-                },
+            println!(
+                "Output buffer size: {} elements, {} bytes",
+                new_shape.size(),
+                output.size()
             );
+            println!("Input buffer size: {} bytes", tensor.size());
+            println!("Weights buffer size: {} bytes", weights.size());
+
+            let params = RustGpuConv2DParams {
+                dimensions: RustGpuShape(tensor.shape.0),
+                conv: RustGpuShape(weights.shape.0),
+                stride: RustGpuShape(stride.0),
+                padding: RustGpuShape(padding.0),
+            };
+
+            println!(
+                "Conv2D params: dimensions={:?}, conv={:?}, stride={:?}, padding={:?}",
+                params.dimensions.0, params.conv.0, params.stride.0, params.padding.0
+            );
+
+            backend.run_shader_2("conv2d", tensor.id, weights.id, output.id, params);
 
             output
         })
@@ -59,6 +70,53 @@ impl Conv2DBackend<RustGpu, f32> for RustGpu {
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
+
+    #[test]
+    fn test_shader_basic_write() {
+        init();
+
+        // Test if the shader can write a simple value to the output buffer
+        let tensor: Tensor<RustGpu, 4, f32> =
+            Tensor::from([[[[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 9.0]]]]);
+
+        let weights: Tensor<RustGpu, 4, f32> =
+            Tensor::from([[[[1.0, 1.0, 1.0], [1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]]]);
+
+        println!("Test input data: {:?}", tensor.to_vec());
+        println!("Test weights data: {:?}", weights.to_vec());
+
+        let result = tensor.conv_2d(&weights, Conv2DParams::default()).unwrap();
+
+        println!("Test result shape: {:?}", result.shape());
+        println!("Test result data: {:?}", result.to_vec());
+
+        // This should produce 45.0 (sum of all input elements: 1+2+3+4+5+6+7+8+9 = 45)
+        assert_eq!(result.shape(), &Shape([1, 1, 1, 1]));
+        assert_eq!(&result.to_vec(), &[45.0]);
+    }
+
+    #[test]
+    fn test_sobel() {
+        init();
+        let tensor: Tensor<RustGpu, 4, f32> =
+            Tensor::from([[[[0.0, 1.0, 1.0], [0.0, 1.0, 1.0], [0.0, 1.0, 1.0]]]]);
+
+        let weights: Tensor<RustGpu, 4, f32> =
+            Tensor::from([[[[1.0, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]]]);
+
+        println!("Input tensor shape: {:?}", tensor.shape());
+        println!("Input tensor data: {:?}", tensor.to_vec());
+        println!("Weights shape: {:?}", weights.shape());
+        println!("Weights data: {:?}", weights.to_vec());
+
+        let result = tensor.conv_2d(&weights, Conv2DParams::default()).unwrap();
+
+        println!("Result shape: {:?}", result.shape());
+        println!("Result data: {:?}", result.to_vec());
+
+        assert_eq!(result.shape, Shape([1, 1, 1, 1]));
+        assert_eq!(&result.to_vec(), &[-3.0]);
+    }
 
     #[test]
     fn test_conv() {

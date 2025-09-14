@@ -166,4 +166,20 @@ mod test {
             ]
         );
     }
+
+    #[test]
+    #[traced_test]
+    fn test_sobel() {
+        let tensor: Tensor<Cpu, 4, f32> =
+            Tensor::from([[[[0.0, 1.0, 1.0], [0.0, 1.0, 1.0], [0.0, 1.0, 1.0]]]]);
+
+        let weights: Tensor<Cpu, 4, f32> =
+            Tensor::from([[[[1.0, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]]]);
+
+        let result = tensor.conv_2d(&weights, Conv2DParams::default()).unwrap();
+
+        assert_eq!(result.shape(), &Shape([1, 1, 1, 1]));
+        println!("CPU Sobel result: {:?}", result.to_vec());
+        assert_eq!(&result.to_vec(), &[-3.0]);
+    }
 }

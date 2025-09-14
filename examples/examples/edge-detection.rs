@@ -58,8 +58,6 @@ impl App {
         App {
             original_img,
             edge_img: None,
-            gradient_x_img: None,
-            gradient_y_img: None,
             processing: false,
             error_message: None,
         }
@@ -95,54 +93,77 @@ impl App {
 
         let sobel_x = RustGpu::new_tensor(
             [3, 3].into(),
-            [1.0, 0.0, -1.0, 1.0, 0.0, -1.0, 1.0, 0.0, -1.0].into(),
-        );
-        let sobel_y = RustGpu::new_tensor(
-            [3, 3].into(),
-            [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, -1.0, -1.0, -1.0].into(),
-        );
+            [1.0, 0.0, -1.0, 2.0, 0.0, -2.0, 1.0, 0.0, -1.0].into(),
+        )
+        .reshape([1, 1, 3, 3])
+        .unwrap();
 
-        let edges = grayscale_tensor.conv_2d(&grayscale_tensor, &sobel_x);
+        let grayscale_tensor = grayscale_tensor.reshape([1, 1, width, height]).unwrap();
+        let max = grayscale_tensor
+            .to_vec()
+            .into_iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let min = grayscale_tensor
+            .to_vec()
+            .into_iter()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        println!("Grayscale min: {}, max: {}", min, max);
 
-        // Step 6: GPU normalization and conversion for combined magnitude
-        println!("⚖️ GPU normalization and conversion to RGB");
+        let edges = grayscale_tensor
+            .conv_2d(
+                &sobel_x,
+                Conv2DParams {
+                    ..Default::default()
+                },
+            )
+            .unwrap();
 
-        // Upload normalized data to GPU for final conversion
-        let normalized_tensor: Tensor<RustGpu, 1, f32> =
-            RustGpu::new_tensor(Shape([width * height]), normalized_data);
+        let max = edges
+            .to_vec()
+            .into_iter()
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let min = edges
+            .to_vec()
+            .into_iter()
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+
+        println!("Edges min: {}, max: {}", min, max);
 
         // Use GPU grayscale to RGB conversion
-        let rgb_edges = RustGpu::grayscale_to_rgb(&normalized_tensor, width, height);
-        let final_rgb_data = rgb_edges.to_vec();
+        // let rgb_edges = RustGpu::grayscale_to_rgb(&edges, width, height);
 
-        // Step 6: Create final edge image
-        println!("🖼️ Creating final edge image");
-        self.edge_img = ImageBuffer::from_raw(width as u32, height as u32, final_rgb_data);
+        // // Step 6: Create final edge image
+        // println!("🖼️ Creating final edge image");
+        // self.edge_img = ImageBuffer::from_raw(width as u32, height as u32, rgb_edges.to_vec());
 
-        if self.edge_img.is_some() {
-            println!("✅ GPU edge detection pipeline completed successfully!");
-            let final_min = *self
-                .edge_img
-                .as_ref()
-                .unwrap()
-                .as_raw()
-                .iter()
-                .min()
-                .unwrap_or(&0);
-            let final_max = *self
-                .edge_img
-                .as_ref()
-                .unwrap()
-                .as_raw()
-                .iter()
-                .max()
-                .unwrap_or(&0);
-            println!("📊 Final image range: {} to {}", final_min, final_max);
-        } else {
-            self.error_message = Some("Failed to create final image buffer".to_string());
-        }
+        // if self.edge_img.is_some() {
+        //     println!("✅ GPU edge detection pipeline completed successfully!");
+        //     let final_min = *self
+        //         .edge_img
+        //         .as_ref()
+        //         .unwrap()
+        //         .as_raw()
+        //         .iter()
+        //         .min()
+        //         .unwrap_or(&0);
+        //     let final_max = *self
+        //         .edge_img
+        //         .as_ref()
+        //         .unwrap()
+        //         .as_raw()
+        //         .iter()
+        //         .max()
+        //         .unwrap_or(&0);
+        //     println!("📊 Final image range: {} to {}", final_min, final_max);
+        // } else {
+        //     self.error_message = Some("Failed to create final image buffer".to_string());
+        // }
 
-        self.processing = false;
+        // self.processing = false;
     }
 }
 

@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ops::Deref, sync::Mutex};
+use std::{collections::HashMap, sync::Mutex};
 
 use lazy_static::lazy_static;
 
@@ -31,7 +31,7 @@ impl Backend for Cpu {
         let length = std::mem::size_of::<T>() * vec.len();
         let data = unsafe { Vec::from_raw_parts(vec.as_ptr() as *mut u8, length, length) };
 
-        // forget vec since our new vec has ownership of memory now thorugh the pointer magic above
+        // forget vec since our new vec has ownership of memory now through the pointer magic above
         std::mem::forget(vec);
 
         let mut lock = DATA.lock().unwrap();
@@ -43,6 +43,20 @@ impl Backend for Cpu {
     fn delete_tensor<const D: usize, T: Clone>(t: &mut Tensor<Self, D, T>) {
         let mut lock = DATA.lock().unwrap();
         lock.remove(&t.id);
+    }
+
+    fn move_tensor<const D: usize, T: Clone, const D2: usize>(
+        t: Tensor<Self, D, T>,
+        shape: Shape<D2>,
+    ) -> Tensor<Self, D2, T> {
+        let mut new_tensor = Tensor::create(shape);
+
+        new_tensor.id = t.id;
+
+        // forget the old tensor, otherwise it will be deleted when the old tensor is dropped
+        std::mem::forget(t);
+
+        new_tensor
     }
 }
 

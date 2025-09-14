@@ -2,7 +2,7 @@ use std::{collections::HashMap, ops::Deref, sync::Mutex};
 
 use afterburner_core::prelude::*;
 use wgpu::{
-    util::{make_spirv, BufferInitDescriptor, DeviceExt},
+    util::{BufferInitDescriptor, DeviceExt},
     Buffer, BufferDescriptor, BufferUsages, Features, Limits, PipelineCompilationOptions,
 };
 
@@ -513,6 +513,11 @@ impl RustGpuBackend {
         };
         let workgroups = (elements + 63) / 64; // 64 threads per workgroup, round up
 
+        println!(
+            "Dispatch info: buffer_id={}, data_size={}, element_size={}, elements={}, workgroups={}",
+            output_buffer_id, data_size, element_size, elements, workgroups
+        );
+
         // GPU limit is 65535 workgroups per dimension, use 2D dispatch if needed
         let max_workgroups = 65535u32;
         let (x_workgroups, y_workgroups) = if workgroups <= max_workgroups as usize {
@@ -522,6 +527,12 @@ impl RustGpuBackend {
             let y = ((workgroups + max_workgroups as usize - 1) / max_workgroups as usize) as u32;
             (x, y)
         };
+
+        println!(
+            "Dispatching workgroups: x={}, y={}, z=1",
+            x_workgroups, y_workgroups
+        );
+
         cpass.dispatch_workgroups(x_workgroups, y_workgroups, 1);
     }
 }
@@ -579,6 +590,26 @@ impl Backend for RustGpu {
 
         if let Some(backend) = lock.as_mut() {
             backend.delete_buffer(t.id);
+        } else {
+            panic!("RustGpu backend has not been initialized call init() first!");
+        }
+    }
+
+    fn move_tensor<const D: usize, T: Clone, const D2: usize>(
+        t: Tensor<Self, D, T>,
+        shape: Shape<D2>,
+    ) -> Tensor<Self, D2, T> {
+        let mut lock = BACKEND.lock().unwrap();
+
+        if let Some(_backend) = lock.as_mut() {
+            let mut tensor = Tensor::create(shape);
+
+            tensor.id = t.id;
+
+            // forget the old tensor, otherwise it will be deleted when the old tensor is dropped
+            std::mem::forget(t);
+
+            tensor
         } else {
             panic!("RustGpu backend has not been initialized call init() first!");
         }

@@ -207,6 +207,65 @@ mod test {
         println!("Padded convolution output: {:?}", output);
     }
 
+    #[test]
+    fn test_conv2d_sobel() {
+        // Test Sobel convolution: 3x3 input with 3x3 Sobel kernel
+        let input = flatten([[[[0.0f32, 1.0, 1.0], [0.0, 1.0, 1.0], [0.0, 1.0, 1.0]]]]);
+        let weights = flatten([[[[1.0f32, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]]]);
+
+        let params = RustGpuConv2DParams {
+            dimensions: RustGpuShape([1, 1, 3, 3]), // [batch, in_channels, height, width]
+            conv: RustGpuShape([1, 1, 3, 3]), // [out_channels, in_channels, kernel_h, kernel_w]
+            stride: RustGpuShape([1, 1]),     // [stride_h, stride_w]
+            padding: RustGpuShape([0, 0]),    // [padding_h, padding_w]
+        };
+
+        let output_size = 1 * 1 * 1 * 1; // batch * out_channels * out_height * out_width
+        let mut output = vec![0f32; output_size];
+        let src_range = 0..output_size;
+
+        src_range
+            .clone()
+            .into_iter()
+            .for_each(|x| conv2d(x as usize, &params, &input, &weights, &mut output));
+
+        println!("Shared Sobel result: {:?}", output);
+        assert_eq!(output, [-3.0f32]);
+    }
+
+    #[test]
+    fn test_conv2d_sobel_debug() {
+        // Debug the exact same case as the failing GPU test
+        let input = flatten([[[[0.0f32, 1.0, 1.0], [0.0, 1.0, 1.0], [0.0, 1.0, 1.0]]]]);
+        let weights = flatten([[[[1.0f32, 0.0, -1.0], [1.0, 0.0, -1.0], [1.0, 0.0, -1.0]]]]);
+
+        let params = RustGpuConv2DParams {
+            dimensions: RustGpuShape([1, 1, 3, 3]), // [batch, in_channels, height, width]
+            conv: RustGpuShape([1, 1, 3, 3]), // [out_channels, in_channels, kernel_h, kernel_w]
+            stride: RustGpuShape([1, 1]),     // [stride_h, stride_w]
+            padding: RustGpuShape([0, 0]),    // [padding_h, padding_w]
+        };
+
+        println!("Input data: {:?}", input);
+        println!("Weights data: {:?}", weights);
+        println!(
+            "Params: dimensions={:?}, conv={:?}, stride={:?}, padding={:?}",
+            params.dimensions.0, params.conv.0, params.stride.0, params.padding.0
+        );
+
+        // Test with id=0 (the only output element)
+        let output_size = 1 * 1 * 1 * 1; // batch * out_channels * out_height * out_width
+        let mut output = vec![999.0f32; output_size]; // Use 999.0 to see if it gets overwritten
+
+        println!("Initial output: {:?}", output);
+
+        // Call the convolution function directly
+        conv2d(0, &params, &input, &weights, &mut output);
+
+        println!("Final output: {:?}", output);
+        assert_eq!(output, [-3.0f32]);
+    }
+
     fn flatten<const D: usize, const D2: usize, const D3: usize, const D4: usize, T: Debug>(
         data: [[[[T; D]; D2]; D3]; D4],
     ) -> [T; D * D2 * D3 * D4] {

@@ -3,7 +3,11 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering::SeqCst},
 };
 
-use crate::{backend::Backend, shape::Shape};
+use crate::{
+    backend::Backend,
+    error::{AbResult, Error},
+    shape::Shape,
+};
 
 static COUNTER: AtomicUsize = AtomicUsize::new(0);
 
@@ -43,6 +47,58 @@ impl<B: Backend, const D: usize, T: Clone> Tensor<B, D, T> {
     #[inline]
     pub fn size(&self) -> usize {
         std::mem::size_of::<T>() * self.shape.size()
+    }
+
+    /// Reshape the tensor to a new shape with potentially different dimensions.
+    ///
+    /// The total number of elements must remain the same. This method allows changing
+    /// both the shape and the number of dimensions of a tensor while preserving all data.
+    ///
+    /// # Arguments
+    ///
+    /// * `new_shape` - The desired shape for the tensor. Can be provided as `Shape<D2>`,
+    ///   `[usize; D2]`, or any type that implements `Into<Shape<D2>>`.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Tensor<B, D2, T>)` if the reshape is successful, or `Err(Error::ShapeMissmatch)`
+    /// if the total number of elements in the new shape doesn't match the current tensor.
+    ///
+    /// # Examples
+    ///
+    /// ```ignore
+    /// use afterburner_core::prelude::*;
+    ///
+    /// // Reshape a 2x3 tensor to 1x6
+    /// # fn example<B: Backend>() -> AbResult<()> {
+    /// let tensor: Tensor<B, 2, f32> = Tensor::create([2, 3]);
+    /// let reshaped = tensor.reshape([1, 6])?;
+    /// assert_eq!(reshaped.shape().as_slice(), &[1, 6]);
+    ///
+    /// // Reshape a 4D tensor to 2D
+    /// let tensor4d: Tensor<B, 4, f32> = Tensor::create([2, 3, 2, 2]);
+    /// let tensor2d = tensor4d.reshape([6, 4])?; // 2*3*2*2 = 24 elements = 6*4
+    /// assert_eq!(tensor2d.shape().as_slice(), &[6, 4]);
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// This method will return `Error::ShapeMissmatch` if the product of dimensions
+    /// in the new shape doesn't equal the product of dimensions in the current shape.
+    pub fn reshape<const D2: usize>(
+        self,
+        new_shape: impl Into<Shape<D2>>,
+    ) -> AbResult<Tensor<B, D2, T>> {
+        let new_shape = new_shape.into();
+
+        // Validate that the total size remains the same
+        if self.shape.size() != new_shape.size() {
+            return Err(Error::ShapeMissmatch);
+        }
+
+        Ok(B::move_tensor(self, new_shape))
     }
 }
 
