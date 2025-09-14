@@ -115,20 +115,15 @@ impl App {
             .conv_2d(
                 &sobel_x,
                 Conv2DParams {
+                    padding: [1, 1].into(),
                     ..Default::default()
                 },
             )
             .unwrap();
 
-        let edges = edges.reshape([width, height].into());
+        let edges = edges.reshape([width, height]).unwrap();
 
-        let normalized_edges = edges
-            .batch_norm(
-                &[1.0f32, 1.0].into(),
-                &[1.0f32, 1.0].into(),
-                BatchNormParams::default(),
-            )
-            .unwrap();
+        let normalized_edges = edges.normalize(NormalizeParams::default()).unwrap();
 
         let min = normalized_edges
             .to_vec()
@@ -138,7 +133,7 @@ impl App {
         let max = normalized_edges
             .to_vec()
             .into_iter()
-            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
 
         println!("Edges min: {}, max: {}", min, max);

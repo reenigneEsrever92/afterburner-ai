@@ -10,6 +10,7 @@ use wgpu::{
 pub mod batch_norm;
 pub mod conv2d;
 pub mod convert;
+pub mod normalize;
 pub mod prelude;
 
 const SHADER: &[u8] = include_bytes!(env!("afterburner_shaders.spv"));

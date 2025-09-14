@@ -3,6 +3,7 @@
 
 use afterburner_rustgpu_shared::batch_norm::RustGpuBatchNormParams;
 use afterburner_rustgpu_shared::conv2d::RustGpuConv2DParams;
+use afterburner_rustgpu_shared::normalize::RustGpuNormalizeParams;
 use spirv_std::{glam::UVec3, spirv};
 
 #[spirv(compute(threads(64)))]
@@ -122,5 +123,83 @@ pub fn batch_norm(
         afterburner_rustgpu_shared::batch_norm::batch_norm(
             idx, &params, input, gamma, beta, output,
         );
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn normalize(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuNormalizeParams<1>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::normalize::normalize(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn normalize_2d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuNormalizeParams<2>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::normalize::normalize(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn normalize_3d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuNormalizeParams<3>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::normalize::normalize(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn normalize_4d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuNormalizeParams<4>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::normalize::normalize(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn normalize_5d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuNormalizeParams<5>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::normalize::normalize(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn normalize_6d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuNormalizeParams<6>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::normalize::normalize(idx, &params, input, output);
     }
 }
