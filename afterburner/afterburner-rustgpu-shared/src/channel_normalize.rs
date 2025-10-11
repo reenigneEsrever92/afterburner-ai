@@ -7,16 +7,16 @@ use crate::RustGpuShape;
 pub struct RustGpuChannelNormalizeParams {
     pub dimensions: RustGpuShape<4>, // [batch_size, channels, height, width]
     pub num_channels: u32,
-    pub mean: [f32; 32], // Support up to 32 channels (extendable if needed)
-    pub std: [f32; 32],  // Support up to 32 channels (extendable if needed)
+    pub mean: [f32; 16], // Support up to 16 channels (extendable if needed)
+    pub std: [f32; 16],  // Support up to 16 channels (extendable if needed)
 }
 
 impl RustGpuChannelNormalizeParams {
     pub fn new(dimensions: RustGpuShape<4>, mean: &[f32], std: &[f32]) -> Self {
-        let mut mean_array = [0.0f32; 32];
-        let mut std_array = [0.0f32; 32];
+        let mut mean_array = [0.0f32; 16];
+        let mut std_array = [0.0f32; 16];
 
-        let num_channels = mean.len().min(32);
+        let num_channels = mean.len().min(16);
 
         // Copy mean and std values into fixed-size arrays
         for i in 0..num_channels {

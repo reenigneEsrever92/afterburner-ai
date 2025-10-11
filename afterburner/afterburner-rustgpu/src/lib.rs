@@ -640,7 +640,7 @@ pub fn init() {
                     required_features: Features::PUSH_CONSTANTS
                         | Features::SPIRV_SHADER_PASSTHROUGH,
                     required_limits: Limits {
-                        max_push_constant_size: 128,
+                        max_push_constant_size: 256,
                         ..Default::default()
                     },
                     ..Default::default()

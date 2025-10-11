@@ -33,6 +33,8 @@
 //! 5. **Use channel normalization to map values to [0,1] range**
 //! 6. Convert back to RGB for display
 
+use std::time::Instant;
+
 use afterburner_rustgpu::prelude::*;
 use eframe::egui as ef;
 use egui::{ColorImage, TextureOptions};
@@ -97,6 +99,8 @@ impl App {
     }
 
     fn run_edge_detection(&mut self) -> Result<ImageBuffer<Rgb<u8>, Vec<u8>>, String> {
+        let start = Instant::now();
+
         let width = self.original_img.width() as usize;
         let height = self.original_img.height() as usize;
 
@@ -218,6 +222,11 @@ impl App {
         // Step 7: Create final image
         println!("🖼️ Creating final edge image");
         let final_data = rgb_edges.to_vec();
+
+        let end = Instant::now();
+        let duration = end - start;
+
+        println!("⏱️ Edge detection took: {:?}", duration);
 
         ImageBuffer::from_raw(width as u32, height as u32, final_data)
             .ok_or_else(|| "Failed to create image buffer from edge data".to_string())
