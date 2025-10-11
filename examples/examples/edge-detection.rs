@@ -99,8 +99,6 @@ impl App {
     }
 
     fn run_edge_detection(&mut self) -> Result<ImageBuffer<Rgb<u8>, Vec<u8>>, String> {
-        let start = Instant::now();
-
         let width = self.original_img.width() as usize;
         let height = self.original_img.height() as usize;
 
@@ -177,10 +175,29 @@ impl App {
             "   This demonstrates torchvision-style normalization vs torch.functional normalize"
         );
 
+        let start = Instant::now();
+
         // Calculate statistics for normalization
+        // let min_val = magnitude_tensor
+        //     .min(MinParams::default())
+        //     .unwrap()
+        //     .to_vec()
+        //     .iter()
+        //     .fold(f32::INFINITY, |a, &b| a.min(b));
+        // let max_val = magnitude_tensor
+        //     .max(MaxParams::default())
+        //     .unwrap()
+        //     .to_vec()
+        //     .iter()
+        //     .fold(f32::NEG_INFINITY, |a, &b| a.max(b));
         let mag_data = magnitude_tensor.to_vec();
         let min_val = mag_data.iter().fold(f32::INFINITY, |a, &b| a.min(b));
         let max_val = mag_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+
+        let end = Instant::now();
+        let duration = end - start;
+
+        println!("⏱️ min, max took: {:?}", duration);
 
         println!(
             "📊 Original magnitude range: {:.3} to {:.3}",
@@ -222,11 +239,6 @@ impl App {
         // Step 7: Create final image
         println!("🖼️ Creating final edge image");
         let final_data = rgb_edges.to_vec();
-
-        let end = Instant::now();
-        let duration = end - start;
-
-        println!("⏱️ Edge detection took: {:?}", duration);
 
         ImageBuffer::from_raw(width as u32, height as u32, final_data)
             .ok_or_else(|| "Failed to create image buffer from edge data".to_string())

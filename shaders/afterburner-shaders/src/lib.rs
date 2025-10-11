@@ -4,6 +4,8 @@
 use afterburner_rustgpu_shared::batch_norm::RustGpuBatchNormParams;
 use afterburner_rustgpu_shared::channel_normalize::RustGpuChannelNormalizeParams;
 use afterburner_rustgpu_shared::conv2d::RustGpuConv2DParams;
+use afterburner_rustgpu_shared::max::RustGpuMaxParams;
+use afterburner_rustgpu_shared::min::RustGpuMinParams;
 use afterburner_rustgpu_shared::normalize::RustGpuNormalizeParams;
 use spirv_std::{glam::UVec3, spirv};
 
@@ -217,5 +219,161 @@ pub fn channel_normalize(
         afterburner_rustgpu_shared::channel_normalize::channel_normalize(
             idx, params, input, output,
         );
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn min(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMinParams<1>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::min::min(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn min_2d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMinParams<2>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::min::min(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn min_3d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMinParams<3>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::min::min(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn min_4d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMinParams<4>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::min::min(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn min_5d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMinParams<5>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::min::min(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn min_6d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMinParams<6>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::min::min(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn max(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMaxParams<1>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::max::max(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn max_2d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMaxParams<2>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::max::max(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn max_3d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMaxParams<3>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::max::max(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn max_4d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMaxParams<4>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::max::max(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn max_5d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMaxParams<5>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::max::max(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn max_6d(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuMaxParams<6>,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::max::max(idx, &params, input, output);
     }
 }

@@ -33,33 +33,6 @@ impl RustGpuChannelNormalizeParams {
     }
 }
 
-#[cfg(not(target_arch = "spirv"))]
-pub fn channel_normalize(
-    input: &[f32],
-    output: &mut [f32],
-    params: &RustGpuChannelNormalizeParams,
-) {
-    let [batch_size, channels, height, width] = params.dimensions.0;
-    let spatial_size = (height * width) as usize;
-    let channel_size = spatial_size;
-    let batch_stride = (channels as usize) * channel_size;
-
-    for batch in 0..batch_size as usize {
-        for channel in 0..channels as usize {
-            let mean = params.mean[channel];
-            let std_dev = params.std[channel];
-
-            for spatial_idx in 0..spatial_size {
-                let idx = batch * batch_stride + channel * channel_size + spatial_idx;
-                let input_val = input[idx];
-                let normalized = (input_val - mean) / std_dev;
-                output[idx] = normalized;
-            }
-        }
-    }
-}
-
-#[cfg(target_arch = "spirv")]
 pub fn channel_normalize(
     idx: usize,
     params: &RustGpuChannelNormalizeParams,
@@ -108,7 +81,9 @@ mod tests {
         let input = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0];
         let mut output = [0.0; 8];
 
-        channel_normalize(&input, &mut output, &params);
+        for i in 0..output.len() {
+            channel_normalize(i, &params, &input, &mut output);
+        }
 
         // Channel 0: (input - 0.5) / 0.5
         // [1, 2, 3, 4] -> [(1-0.5)/0.5, (2-0.5)/0.5, (3-0.5)/0.5, (4-0.5)/0.5] = [1, 3, 5, 7]
