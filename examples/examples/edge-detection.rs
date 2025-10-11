@@ -167,7 +167,7 @@ impl App {
             .map(|(gx, gy)| (gx * gx + gy * gy).sqrt())
             .collect();
 
-        let magnitude_tensor = RustGpu::new_tensor(Shape([1, 1, height, width]), magnitude_data);
+        let magnitude_tensor = RustGpu::new_tensor(Shape([height * width]), magnitude_data);
 
         // Step 5: Use channel normalization to map values to [0,1] range
         println!("⚖️ Applying channel normalization to map values to [0,1]");
@@ -177,52 +177,17 @@ impl App {
 
         let start = Instant::now();
 
-        // Calculate statistics for normalization
-        // let min_val = magnitude_tensor
-        //     .min(MinParams::default())
-        //     .unwrap()
-        //     .to_vec()
-        //     .iter()
-        //     .fold(f32::INFINITY, |a, &b| a.min(b));
-        // let max_val = magnitude_tensor
-        //     .max(MaxParams::default())
-        //     .unwrap()
-        //     .to_vec()
-        //     .iter()
-        //     .fold(f32::NEG_INFINITY, |a, &b| a.max(b));
-        let mag_data = magnitude_tensor.to_vec();
-        let min_val = mag_data.iter().fold(f32::INFINITY, |a, &b| a.min(b));
-        let max_val = mag_data.iter().fold(f32::NEG_INFINITY, |a, &b| a.max(b));
+        // Apply range normalization to map values to [0,1] range
+        println!("⚖️ Applying range normalization to map values to [0,1]");
+        println!("   Using GPU-optimized min-max normalization: (value - min) / (max - min)");
+
+        let normalized_magnitude = magnitude_tensor
+            .range_normalize(RangeNormalizeParams::default())
+            .map_err(|e| format!("Range normalization failed: {:?}", e))?;
 
         let end = Instant::now();
         let duration = end - start;
-
-        println!("⏱️ min, max took: {:?}", duration);
-
-        println!(
-            "📊 Original magnitude range: {:.3} to {:.3}",
-            min_val, max_val
-        );
-
-        // Apply channel normalization: (value - min) / (max - min) maps to [0,1]
-        // This is the key difference from L2 normalization which would create unit vectors
-        let range = max_val - min_val;
-        let normalized_magnitude = if range > 1e-6 {
-            println!(
-                "   Using formula: (value - {:.3}) / {:.3} → [0,1]",
-                min_val, range
-            );
-            magnitude_tensor
-                .channel_normalize(ChannelNormalizeParams {
-                    mean: vec![min_val], // Subtract minimum to shift to 0
-                    std: vec![range],    // Divide by range to scale to [0,1]
-                })
-                .map_err(|e| format!("Channel normalization failed: {:?}", e))?
-        } else {
-            // Handle case where all values are the same
-            println!("   All gradient values are the same - no normalization needed");
-            magnitude_tensor
-        };
+        println!("⏱️ GPU normalization took: {:?}", duration);
 
         // Verify normalization
         let norm_data = normalized_magnitude.to_vec();
@@ -342,20 +307,20 @@ impl eframe::App for App {
             ui.label("2. 🔄 GPU RGB → Grayscale conversion");
             ui.label("3. 🎯 Apply Sobel X and Y filters using Conv2D");
             ui.label("4. ⚡ Calculate gradient magnitude: sqrt(gx² + gy²)");
-            ui.label("5. ⚖️ Channel normalization: (value - min) / (max - min) → [0,1]");
-            ui.label("   📝 This uses torchvision.transforms.Normalize style");
-            ui.label("   📝 NOT torch.nn.functional.normalize (L2 unit vectors)");
+            ui.label("5. ⚖️ Range normalization: (value - min) / (max - min) → [0,1]");
+            ui.label("   📝 This uses GPU-optimized min-max normalization");
+            ui.label("   📝 Maps arbitrary gradient values to [0,1] for visualization");
             ui.label("6. 🎨 GPU grayscale → RGB conversion");
             ui.label("7. 📥 Display normalized edge results");
 
             ui.separator();
             ui.colored_label(
                 egui::Color32::from_rgb(0, 150, 255),
-                "✨ Channel normalization maps arbitrary edge gradients to [0,1] for optimal visualization!",
+                "✨ Range normalization maps arbitrary edge gradients to [0,1] for optimal visualization!",
             );
             ui.colored_label(
                 egui::Color32::from_rgb(255, 165, 0),
-                "🔍 Key: Uses (value-mean)/std vs L2 normalize which creates unit vectors",
+                "🔍 Key: Uses GPU-accelerated (value-min)/(max-min) normalization",
             );
         });
     }

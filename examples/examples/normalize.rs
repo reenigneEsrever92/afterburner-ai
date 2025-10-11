@@ -1,3 +1,4 @@
+use afterburner_ops::vector::normalize::NormalizeParams;
 use afterburner_rustgpu::prelude::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

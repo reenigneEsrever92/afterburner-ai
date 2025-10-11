@@ -15,6 +15,7 @@ pub mod max;
 pub mod min;
 pub mod normalize;
 pub mod prelude;
+pub mod range_normalize;
 
 const SHADER: &[u8] = include_bytes!(env!("afterburner_shaders.spv"));
 
@@ -261,7 +262,7 @@ impl RustGpuBackend {
             cpass.set_bind_group(0, &bind_group, &[]);
             cpass.set_pipeline(&compute_pipeline);
             cpass.set_push_constants(0, cast_struct(&params));
-            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 4);
+            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 256);
         }
 
         self.queue.submit(Some(encoder.finish()));
@@ -368,7 +369,7 @@ impl RustGpuBackend {
             cpass.set_bind_group(0, &bind_group, &[]);
             cpass.set_pipeline(&compute_pipeline);
             cpass.set_push_constants(0, cast_struct(&params));
-            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 4);
+            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 256);
         }
 
         self.queue.submit(Some(encoder.finish()));
@@ -492,7 +493,7 @@ impl RustGpuBackend {
             cpass.set_pipeline(&compute_pipeline);
             cpass.set_push_constants(0, cast_struct(&params));
 
-            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 4);
+            self.safe_dispatch_workgroups(&mut cpass, output_buffer_id, 256);
         }
 
         self.queue.submit(Some(encoder.finish()));

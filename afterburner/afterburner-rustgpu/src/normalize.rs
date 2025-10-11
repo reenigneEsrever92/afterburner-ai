@@ -1,5 +1,5 @@
 use afterburner_core::prelude::*;
-use afterburner_ops::prelude::*;
+use afterburner_ops::vector::normalize::{NormalizeImpl, NormalizeParams};
 use afterburner_rustgpu_shared::{normalize::RustGpuNormalizeParams, RustGpuShape};
 
 use crate::{run_with_backend, RustGpu};
@@ -135,7 +135,9 @@ impl<const D: usize> NormalizeImpl<RustGpu, f32, D> for RustGpu {
 
 #[cfg(test)]
 mod test {
-    use crate::prelude::*;
+    use crate::{init, RustGpu};
+    use afterburner_core::prelude::{Shape, Tensor};
+    use afterburner_ops::vector::normalize::{Normalize, NormalizeParams};
 
     #[test]
     fn test_normalize_l2_2d() {

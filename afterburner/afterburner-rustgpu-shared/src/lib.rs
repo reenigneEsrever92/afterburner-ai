@@ -7,6 +7,7 @@ pub mod conv2d;
 pub mod max;
 pub mod min;
 pub mod normalize;
+pub mod range_normalize;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

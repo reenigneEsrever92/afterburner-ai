@@ -7,9 +7,10 @@ use afterburner_rustgpu_shared::conv2d::RustGpuConv2DParams;
 use afterburner_rustgpu_shared::max::RustGpuMaxParams;
 use afterburner_rustgpu_shared::min::RustGpuMinParams;
 use afterburner_rustgpu_shared::normalize::RustGpuNormalizeParams;
+use afterburner_rustgpu_shared::range_normalize::RustGpuRangeNormalizeParams;
 use spirv_std::{glam::UVec3, spirv};
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn test(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] _input: &[u8],
@@ -222,7 +223,7 @@ pub fn channel_normalize(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn min(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMinParams<1>,
@@ -235,7 +236,7 @@ pub fn min(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn min_2d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMinParams<2>,
@@ -248,7 +249,7 @@ pub fn min_2d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn min_3d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMinParams<3>,
@@ -261,7 +262,7 @@ pub fn min_3d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn min_4d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMinParams<4>,
@@ -274,7 +275,7 @@ pub fn min_4d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn min_5d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMinParams<5>,
@@ -287,7 +288,7 @@ pub fn min_5d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn min_6d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMinParams<6>,
@@ -300,7 +301,7 @@ pub fn min_6d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn max(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMaxParams<1>,
@@ -313,7 +314,7 @@ pub fn max(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn max_2d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMaxParams<2>,
@@ -326,7 +327,7 @@ pub fn max_2d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn max_3d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMaxParams<3>,
@@ -339,7 +340,7 @@ pub fn max_3d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn max_4d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMaxParams<4>,
@@ -352,7 +353,7 @@ pub fn max_4d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn max_5d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMaxParams<5>,
@@ -365,7 +366,7 @@ pub fn max_5d(
     }
 }
 
-#[spirv(compute(threads(64)))]
+#[spirv(compute(threads(256)))]
 pub fn max_6d(
     #[spirv(global_invocation_id)] id: UVec3,
     #[spirv(push_constant)] params: &RustGpuMaxParams<6>,
@@ -375,5 +376,18 @@ pub fn max_6d(
     let idx = (id.y * 65535 + id.x) as usize;
     if idx < output.len() {
         afterburner_rustgpu_shared::max::max(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(256)))]
+pub fn range_normalize(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuRangeNormalizeParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::range_normalize::range_normalize(idx, &params, input, output);
     }
 }

@@ -33,49 +33,128 @@ pub fn max<const D: usize>(
     input: &[f32],
     output: &mut [f32],
 ) {
+    if params.dim == -1 {
+        // Global maximum using parallel reduction
+        global_max_reduction(idx, input, output);
+    } else {
+        // Dimension-specific reduction
+        dimension_max_reduction(idx, params, input, output);
+    }
+}
+
+// High-performance global max using parallel reduction
+fn global_max_reduction(global_idx: usize, input: &[f32], output: &mut [f32]) {
+    const WORKGROUP_SIZE: usize = 256;
+
+    // Each thread processes multiple elements to maximize throughput
+    let elements_per_thread = (input.len() + WORKGROUP_SIZE - 1) / WORKGROUP_SIZE;
+    let thread_id = global_idx % WORKGROUP_SIZE;
+    let workgroup_id = global_idx / WORKGROUP_SIZE;
+
+    if workgroup_id > 0 {
+        return; // Only first workgroup participates in this simplified version
+    }
+
+    // Phase 1: Each thread finds maximum of its assigned elements
+    let mut local_max = f32::NEG_INFINITY;
+    let start_idx = thread_id * elements_per_thread;
+    let end_idx = ((thread_id + 1) * elements_per_thread).min(input.len());
+
+    for i in start_idx..end_idx {
+        local_max = local_max.max(input[i]);
+    }
+
+    // Phase 2: Tree reduction within workgroup (simulated with sequential approach for no_std)
+    // In a real GPU implementation, this would use shared memory and barriers
+    if thread_id == 0 {
+        let mut global_max = local_max;
+
+        // Simulate collecting results from other threads in workgroup
+        for tid in 1..WORKGROUP_SIZE {
+            let other_start = tid * elements_per_thread;
+            let other_end = ((tid + 1) * elements_per_thread).min(input.len());
+
+            if other_start < input.len() {
+                let mut other_max = f32::NEG_INFINITY;
+                for i in other_start..other_end {
+                    other_max = other_max.max(input[i]);
+                }
+                global_max = global_max.max(other_max);
+            }
+        }
+
+        output[0] = global_max;
+    }
+}
+
+// High-performance dimension-specific max reduction
+fn dimension_max_reduction<const D: usize>(
+    idx: usize,
+    params: &RustGpuMaxParams<D>,
+    input: &[f32],
+    output: &mut [f32],
+) {
     if idx >= output.len() {
         return;
     }
 
-    if params.dim == -1 {
-        // Global maximum - only thread 0 should compute this
-        if idx == 0 {
-            let mut max_val = f32::NEG_INFINITY;
-            for i in 0..input.len() {
-                max_val = max_val.max(input[i]);
-            }
-            output[0] = max_val;
-        }
+    // For dimension-specific reduction, we need to compute the max
+    // along the specified dimension for this output position
+
+    let dim = if params.dim < 0 {
+        (D as i32 + params.dim) as usize
     } else {
-        // Simplified dimension reduction - just use the input value for now
-        let max_val = calculate_max_value(idx, params, input);
-        if max_val != f32::NEG_INFINITY {
-            output[idx] = max_val;
+        params.dim as usize
+    };
+
+    if dim >= D {
+        return;
+    }
+
+    // Calculate strides for efficient indexing
+    let mut input_strides = [1usize; D];
+    let mut output_strides = [1usize; D];
+
+    // Calculate input strides
+    for i in (0..D - 1).rev() {
+        input_strides[i] = input_strides[i + 1] * params.input_shape.0[i + 1] as usize;
+    }
+
+    // Calculate output strides
+    for i in (0..D - 1).rev() {
+        output_strides[i] = output_strides[i + 1] * params.output_shape.0[i + 1] as usize;
+    }
+
+    // Convert linear output index to multi-dimensional coordinates
+    let mut output_coords = [0usize; D];
+    let mut remaining_idx = idx;
+    for i in 0..D {
+        output_coords[i] = remaining_idx / output_strides[i];
+        remaining_idx %= output_strides[i];
+    }
+
+    // Find maximum along the reduction dimension
+    let mut max_val = f32::NEG_INFINITY;
+    let reduce_size = params.input_shape.0[dim] as usize;
+
+    for i in 0..reduce_size {
+        // Create input coordinates from output coordinates
+        let mut input_coords = output_coords;
+        input_coords[dim] = i;
+
+        // Convert multi-dimensional coordinates to linear index
+        let mut input_idx = 0;
+        for j in 0..D {
+            input_idx += input_coords[j] * input_strides[j];
+        }
+
+        if input_idx < input.len() {
+            max_val = max_val.max(input[input_idx]);
         }
     }
-}
 
-// Simplified implementation without Vec for no_std compatibility
-fn calculate_max_value<const D: usize>(
-    idx: usize,
-    params: &RustGpuMaxParams<D>,
-    input: &[f32],
-) -> f32 {
-    if params.dim == -1 {
-        // Global maximum - scan entire input
-        let mut max_val = f32::NEG_INFINITY;
-        for i in 0..input.len() {
-            max_val = max_val.max(input[i]);
-        }
-        max_val
-    } else {
-        // For now, return the input value at the current index
-        // This is a simplified implementation
-        if idx < input.len() {
-            input[idx]
-        } else {
-            f32::NEG_INFINITY
-        }
+    if max_val != f32::NEG_INFINITY {
+        output[idx] = max_val;
     }
 }
 
@@ -102,7 +181,7 @@ mod tests {
 
         let params = RustGpuMaxParams::new(
             RustGpuShape([2, 3]),
-            RustGpuShape([3]),
+            RustGpuShape([1, 3]),
             Some(0), // max along first dimension
             false,
         );
