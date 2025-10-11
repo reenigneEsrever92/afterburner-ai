@@ -1,6 +1,9 @@
+pub mod activation;
 pub mod batch_norm;
 pub mod conv;
+pub mod elementwise;
 pub mod prelude;
 pub mod reduction;
+pub mod reshape;
 pub mod transforms;
 pub mod vector;

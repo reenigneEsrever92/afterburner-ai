@@ -168,6 +168,7 @@ impl<const D: usize> MaxImpl<RustGpu, f32, D> for RustGpu {
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
+    use afterburner_core::backend::Backend;
 
     #[test]
     fn test_max_global_1d() {

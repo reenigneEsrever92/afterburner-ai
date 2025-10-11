@@ -44,6 +44,7 @@ impl BatchNormImpl<RustGpu, f32> for RustGpu {
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
+    use afterburner_core::backend::Backend;
 
     #[test]
     fn test_batch_norm() {

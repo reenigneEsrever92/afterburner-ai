@@ -34,6 +34,7 @@ impl<const D: usize> RangeNormalizeImpl<RustGpu, f32, D> for RustGpu {
 mod test {
     use crate::{init, RustGpu};
     use crate::{Shape, Tensor};
+    use afterburner_core::backend::Backend;
     use afterburner_ops::transforms::range_normalize::{RangeNormalize, RangeNormalizeParams};
 
     #[test]

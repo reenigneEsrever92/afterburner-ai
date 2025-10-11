@@ -136,6 +136,7 @@ impl<const D: usize> NormalizeImpl<RustGpu, f32, D> for RustGpu {
 #[cfg(test)]
 mod test {
     use crate::{init, RustGpu};
+    use afterburner_core::backend::Backend;
     use afterburner_core::prelude::{Shape, Tensor};
     use afterburner_ops::vector::normalize::{Normalize, NormalizeParams};
 

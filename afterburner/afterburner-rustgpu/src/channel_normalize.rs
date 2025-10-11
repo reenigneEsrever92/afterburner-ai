@@ -38,6 +38,7 @@ impl ChannelNormalizeImpl<RustGpu, f32> for RustGpu {
 #[cfg(test)]
 mod test {
     use crate::prelude::*;
+    use afterburner_core::backend::Backend;
 
     #[test]
     fn test_channel_normalize_rgb() {

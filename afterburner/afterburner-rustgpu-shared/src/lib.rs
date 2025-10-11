@@ -1,13 +1,16 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 #![feature(generic_const_exprs)]
 
+pub mod activation;
 pub mod batch_norm;
 pub mod channel_normalize;
 pub mod conv2d;
+pub mod elementwise;
 pub mod max;
 pub mod min;
 pub mod normalize;
 pub mod range_normalize;
+pub mod reshape;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]

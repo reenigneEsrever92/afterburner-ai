@@ -1,13 +1,20 @@
 #![cfg_attr(target_arch = "spirv", no_std)]
 #![feature(generic_const_exprs)]
 
+use afterburner_rustgpu_shared::activation::{
+    RustGpuLeakyReLUParams, RustGpuReLUParams, RustGpuSigmoidParams, RustGpuTanhParams,
+};
 use afterburner_rustgpu_shared::batch_norm::RustGpuBatchNormParams;
 use afterburner_rustgpu_shared::channel_normalize::RustGpuChannelNormalizeParams;
 use afterburner_rustgpu_shared::conv2d::RustGpuConv2DParams;
+use afterburner_rustgpu_shared::elementwise::RustGpuElementwiseParams;
 use afterburner_rustgpu_shared::max::RustGpuMaxParams;
 use afterburner_rustgpu_shared::min::RustGpuMinParams;
 use afterburner_rustgpu_shared::normalize::RustGpuNormalizeParams;
 use afterburner_rustgpu_shared::range_normalize::RustGpuRangeNormalizeParams;
+use afterburner_rustgpu_shared::reshape::{
+    RustGpuConcatenateParams, RustGpuSliceParams, RustGpuTransposeParams, RustGpuUpsampleParams,
+};
 use spirv_std::{glam::UVec3, spirv};
 
 #[spirv(compute(threads(256)))]
@@ -389,5 +396,169 @@ pub fn range_normalize(
     let idx = (id.y * 65535 + id.x) as usize;
     if idx < output.len() {
         afterburner_rustgpu_shared::range_normalize::range_normalize(idx, &params, input, output);
+    }
+}
+
+// Activation functions
+#[spirv(compute(threads(64)))]
+pub fn leaky_relu(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuLeakyReLUParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::activation::leaky_relu(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn sigmoid(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuSigmoidParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::activation::sigmoid(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn tanh(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuTanhParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::activation::tanh(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn relu(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuReLUParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::activation::relu(idx, &params, input, output);
+    }
+}
+
+// Element-wise operations
+#[spirv(compute(threads(64)))]
+pub fn elementwise_add(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuElementwiseParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input_a: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] input_b: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::elementwise::add(idx, &params, input_a, input_b, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn elementwise_sub(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuElementwiseParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input_a: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] input_b: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::elementwise::sub(idx, &params, input_a, input_b, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn elementwise_mul(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuElementwiseParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input_a: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] input_b: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::elementwise::mul(idx, &params, input_a, input_b, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn elementwise_div(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuElementwiseParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input_a: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] input_b: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::elementwise::div(idx, &params, input_a, input_b, output);
+    }
+}
+
+// Reshape operations
+#[spirv(compute(threads(64)))]
+pub fn upsample_nearest(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuUpsampleParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::reshape::upsample_nearest(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn upsample_bilinear(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuUpsampleParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::reshape::upsample_bilinear(idx, &params, input, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn concatenate(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuConcatenateParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input_a: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] input_b: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 2)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::reshape::concatenate(idx, &params, input_a, input_b, output);
+    }
+}
+
+#[spirv(compute(threads(64)))]
+pub fn transpose(
+    #[spirv(global_invocation_id)] id: UVec3,
+    #[spirv(push_constant)] params: &RustGpuTransposeParams,
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 0)] input: &[f32],
+    #[spirv(storage_buffer, descriptor_set = 0, binding = 1)] output: &mut [f32],
+) {
+    let idx = (id.y * 65535 + id.x) as usize;
+    if idx < output.len() {
+        afterburner_rustgpu_shared::reshape::transpose(idx, &params, input, output);
     }
 }
